@@ -31,19 +31,29 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
+  char *copy;
+  char *saved;
+
+  copy = palloc_get_page (0);
+  if (copy == NULL)
+    return TID_ERROR;
+
+  strlcpy(copy, file_name, strlen(file_name));
+  char *exe = strtok_r(copy, " ", &saved);
+
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
+
   strlcpy (fn_copy, file_name, PGSIZE);
-  printf("======d================\n");
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (exe, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
-  printf("======a================\n");
+    palloc_free_page (fn_copy);
+  palloc_free_page (copy);
 
   return tid;
 }
@@ -53,13 +63,9 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  printf("======asdsadasd================\n");
-
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  printf("======asdsadasd================\n");
-
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -205,12 +211,12 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, const char *file_name);
+static bool setup_stack (void **esp);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
-void load_onto_stack(void **esp, const char *cmd_line);
+// void parse_line(void **esp, const char *cmd_line);
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -219,8 +225,6 @@ void load_onto_stack(void **esp, const char *cmd_line);
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
-  printf("======asdsadasd================\n");
-
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -234,8 +238,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  /* Open executable file. */
+  printf("%s\n", file_name);
+
+  // char *copy;
+  // char *saved;
+
+  // strlcpy(copy,file_name,strlen(file_name));
+  // char *exe = strtok_r(copy, " ", &saved);
+
   file = filesys_open (file_name);
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -315,9 +327,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp, file_name))
+  if (!setup_stack (esp))
     goto done;
-  printf("======asdsadasd================\n");
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -441,8 +452,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp, const char *file_name) 
+setup_stack (void **esp) 
 {
+
   uint8_t *kpage;
   bool success = false;
 
@@ -452,9 +464,6 @@ setup_stack (void **esp, const char *file_name)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
         *esp = PHYS_BASE;
-  printf("=============asdsads=========\n");
-
-        load_onto_stack(esp, file_name);
       }
       else
         palloc_free_page (kpage);
@@ -485,47 +494,52 @@ install_page (void *upage, void *kpage, bool writable)
 
 /*
 
-*/
-void
-load_onto_stack(void **esp, const char *cmd_line){
-  char *cmd_line_copy;
-  char *reentrant_pointer;
-  char *arguments_foo[128];
-  char *arguments[128];
-  int i,j;
+// */
+// char **
+// parse_line(const char *cmd_line){
+//   char *cmd_line_copy;
+//   char *reentrant_pointer;
+//   char *arguments_foo[128];
+//   char *arguments[128];
+//   int i,j;
 
-  strlcpy(cmd_line_copy,cmd_line,PGSIZE);
-  arguments_foo[i] = strtok_r(cmd_line_copy," \0",&reentrant_pointer);
+//   strlcpy(cmd_line_copy,cmd_line,PGSIZE);
+//   arguments_foo[i] = strtok_r(cmd_line_copy," \0",&reentrant_pointer);
 
-  while(arguments_foo[i])
-    arguments_foo[++i] = strtok_r(NULL,"\0",&reentrant_pointer);
-  for(j=0;j<i;j++){
-    arguments[i-j-1] = arguments_foo[j];
-  }
+//   while(arguments_foo[i])
+//     arguments_foo[++i] = strtok_r(NULL,"\0",&reentrant_pointer);
 
-  for(j=0;j<i;j++){
-    *esp = arguments[j];
-    (char *)esp++;
-  }
+//   for(j=0;j<i;j++){
+//     arguments[i-j-1] = arguments_foo[j];
+//   }
 
-  *esp = (uint32_t)0;
-  (uint32_t)esp++;
+//   return arguments;
+// }
 
-  *esp = (char *)0;
-  (char *)esp++;
 
-  for(j=0;j<i;j++){
-    *esp = *(arguments[j]);
-    (char *)esp++;
-  }
 
-  *esp = *cmd_line;
-  (char **)esp++;
+  // for(j=0;j<i;j++){
+  //   *esp = arguments[j];
+  //   (char *)esp++;
+  // }
 
-  *esp = i;
-  (int)esp++;
-  *esp = (void **)0;
-  printf("======================\n");
-   hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+  // *esp = (uint32_t)0;
+  // (uint32_t)esp++;
 
-}
+  // *esp = (char *)0;
+  // (char *)esp++;
+
+  // for(j=0;j<i;j++){
+  //   *esp = *(arguments[j]);
+  //   (char *)esp++;
+  // }
+
+  // *esp = *cmd_line;
+  // (char **)esp++;
+
+  // *esp = i;
+  // (int)esp++;
+  // *esp = (void **)0;
+
+
+        // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
