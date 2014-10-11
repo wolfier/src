@@ -211,12 +211,13 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, const char *cmd_line);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
-// void parse_line(void **esp, const char *cmd_line);
+
+void load_stack(void **esp, const char *cmd_line);
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -238,15 +239,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  printf("%s\n", file_name);
+  /* Need to free */
+  char *copy = palloc_get_page (0);
+  char *saved;
 
-  // char *copy;
-  // char *saved;
+  strlcpy(copy,file_name,strlen(file_name));
+  char *exe = strtok_r(copy, " ", &saved);
 
-  // strlcpy(copy,file_name,strlen(file_name));
-  // char *exe = strtok_r(copy, " ", &saved);
-
-  file = filesys_open (file_name);
+  file = filesys_open (exe);
 
   if (file == NULL) 
     {
@@ -327,7 +327,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, file_name))
     goto done;
 
   /* Start address. */
@@ -452,7 +452,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, const char *cmd_line) 
 {
 
   uint8_t *kpage;
@@ -464,6 +464,8 @@ setup_stack (void **esp)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
         *esp = PHYS_BASE;
+        load_stack(esp, cmd_line);
+        hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
       }
       else
         palloc_free_page (kpage);
@@ -491,55 +493,70 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
+void
+load_stack(void **esp, const char *cmd_line){
 
-/*
+  //Make copy of esp for safety
+  void *csp = *esp;
 
-// */
-// char **
-// parse_line(const char *cmd_line){
-//   char *cmd_line_copy;
-//   char *reentrant_pointer;
-//   char *arguments_foo[128];
-//   char *arguments[128];
-//   int i,j;
+  char *argv[128];
+  char *argvR[128];
+  int i, j, k;
+  char null = '\0';
 
-//   strlcpy(cmd_line_copy,cmd_line,PGSIZE);
-//   arguments_foo[i] = strtok_r(cmd_line_copy," \0",&reentrant_pointer);
+  char *copy = palloc_get_page (0);
+  char *saved;
 
-//   while(arguments_foo[i])
-//     arguments_foo[++i] = strtok_r(NULL,"\0",&reentrant_pointer);
+  strlcpy(copy, cmd_line, strlen(cmd_line)+1);
+  argv[i] = strtok_r(copy," \0",&saved);
 
-//   for(j=0;j<i;j++){
-//     arguments[i-j-1] = arguments_foo[j];
-//   }
+  while(argv[i])
+    argv[++i] = strtok_r(NULL," \0",&saved);
 
-//   return arguments;
-// }
+  // Reverse the args to right to left order
+  for(j=0;j<i;j++){
+    argvR[i-j-1] = argv[j] + '\0';
+  }
 
+  // Push individual char onto the stack and
+  // subtracting csp accordinly
+  for(j=0;j<i;j++){
+    for(k=strlen(argvR[j]); k>=0; k--){
+      memcpy(csp, &argvR[j][k], sizeof(char));
+      csp-= sizeof(char);
+    }
+  }
 
+  // Word align stack pointer down to a multiple of 4 
+  while((PHYS_BASE - csp)%4){
+    memcpy(csp, &k, sizeof(uint8_t));
+    csp--;
+  }
 
-  // for(j=0;j<i;j++){
-  //   *esp = arguments[j];
-  //   (char *)esp++;
-  // }
+  // Push null sentinal to denote end of array
+  memcpy(csp, &null, 1);
+  csp -= sizeof(char*);
 
-  // *esp = (uint32_t)0;
-  // (uint32_t)esp++;
+  // Push address of each element of char[]
+  void *p = PHYS_BASE;
+  for(j=0;j<i;j++){
+    p -= (strlen(argvR[j])+1);
+    memcpy(csp, &p, sizeof(char*));
+    csp -= sizeof(char*);
+  }
 
-  // *esp = (char *)0;
-  // (char *)esp++;
+  // Push address of beginning of char[]
+  memcpy(csp, &csp, sizeof(char*));
+  csp -= sizeof(char*);
 
-  // for(j=0;j<i;j++){
-  //   *esp = *(arguments[j]);
-  //   (char *)esp++;
-  // }
+  // Push number of elements in char[]
+  memcpy(csp, &i, sizeof(int));
+  csp -= sizeof(int);
 
-  // *esp = *cmd_line;
-  // (char **)esp++;
+  // Push return value
+  memcpy(csp, &k, sizeof(uint32_t));
+  csp -= sizeof(uint32_t);
 
-  // *esp = i;
-  // (int)esp++;
-  // *esp = (void **)0;
-
-
-        // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+  // Set esp to csp 
+  *esp = csp;
+}
