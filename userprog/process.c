@@ -557,6 +557,8 @@ load_stack(void **esp, const char *cmd_line){
   memcpy(csp, &k, sizeof(uint32_t));
   csp -= sizeof(uint32_t);
 
+  printf("%d%s\n", k);
+
   // Set esp to csp 
   *esp = csp;
 }
