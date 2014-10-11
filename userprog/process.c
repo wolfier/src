@@ -243,8 +243,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char *copy = palloc_get_page (0);
   char *saved;
 
+
   strlcpy(copy,file_name,strlen(file_name));
-  char *exe = strtok_r(copy, " ", &saved);
+  char *exe = strtok_r(copy, " \0", &saved);
 
   file = filesys_open (exe);
 
@@ -498,7 +499,6 @@ load_stack(void **esp, const char *cmd_line){
 
   //Make copy of esp for safety
   void *csp = *esp;
-
   char *argv[128];
   char *argvR[128];
   int i, j, k;
@@ -522,42 +522,53 @@ load_stack(void **esp, const char *cmd_line){
   // subtracting csp accordinly
   for(j=0;j<i;j++){
     for(k=strlen(argvR[j]); k>=0; k--){
-      memcpy(csp, &argvR[j][k], sizeof(char));
       csp-= sizeof(char);
+      memcpy(csp, &argvR[j][k], sizeof(char));
+      printf("%c\t0x%08x\n", argvR[j][k], csp);
     }
   }
 
+  int offset = (uint8_t)csp % 4;
+  uint8_t align = 0;
+
   // Word align stack pointer down to a multiple of 4 
-  while((PHYS_BASE - csp)%4){
-    memcpy(csp, &k, sizeof(uint8_t));
-    csp--;
+  while(offset){
+    csp -= sizeof(uint8_t);
+    memcpy(csp, &align, sizeof(uint8_t));
+    printf("0\t0x%08x\n", csp);
+    offset--;
   }
 
   // Push null sentinal to denote end of array
   memcpy(csp, &null, 1);
   csp -= sizeof(char*);
+  printf("0\t0x%08x\n", csp);
+
 
   // Push address of each element of char[]
   void *p = PHYS_BASE;
   for(j=0;j<i;j++){
-    p -= (strlen(argvR[j])+1);
-    memcpy(csp, &p, sizeof(char*));
     csp -= sizeof(char*);
+    p -= (strlen(argvR[j])+1);
+    memcpy(csp, &p, sizeof(char**));
+    printf("0x%08x\t0x%08x\n", p, csp);
   }
 
   // Push address of beginning of char[]
-  memcpy(csp, &csp, sizeof(char*));
-  csp -= sizeof(char*);
+  void *begin = csp;
+  csp -= sizeof(char**);
+  memcpy(csp, &begin, sizeof(char**));
+  printf("==0x%08x\t0x%08x\n", begin, csp);
 
   // Push number of elements in char[]
-  memcpy(csp, &i, sizeof(int));
   csp -= sizeof(int);
+  memcpy(csp, &i, sizeof(int));
+  printf("%d\t0x%08x\n", i, csp);
 
-  // Push return value
-  memcpy(csp, &k, sizeof(uint32_t));
+  k=0;
   csp -= sizeof(uint32_t);
-
-  printf("%d%s\n", k);
+  memcpy(csp, &k, sizeof(uint32_t));
+  printf("0\t0x%08x\n", csp);
 
   // Set esp to csp 
   *esp = csp;
