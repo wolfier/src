@@ -243,14 +243,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char *copy = palloc_get_page (0);
   char *saved;
 
-
-  printf("===============");
-  strlcpy(copy,file_name,strlen(file_name));
-  char *exe = strtok_r(copy, " \0", &saved);
-  printf("===============");
+  strlcpy(copy,file_name,strlen(file_name)+1);
+  char *exe = strtok_r(copy, " ", &saved);
 
   file = filesys_open (exe);
-  printf("===============");
+
+  printf("%s\n", exe);
 
   if (file == NULL) 
     {
@@ -535,12 +533,7 @@ load_stack(void **esp, const char *cmd_line){
   uint8_t align = 0;
 
   // Word align stack pointer down to a multiple of 4 
-  while(offset){
-    csp -= sizeof(uint8_t);
-    memcpy(csp, &align, sizeof(uint8_t));
-    printf("0\t0x%08x\n", csp);
-    offset--;
-  }
+  csp -= sizeof(uint8_t)*offset;
 
   // Push null sentinal to denote end of array
   memcpy(csp, &null, 1);
