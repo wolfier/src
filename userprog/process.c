@@ -244,10 +244,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char *saved;
 
 
+  printf("===============");
   strlcpy(copy,file_name,strlen(file_name));
   char *exe = strtok_r(copy, " \0", &saved);
+  printf("===============");
 
   file = filesys_open (exe);
+  printf("===============");
 
   if (file == NULL) 
     {
