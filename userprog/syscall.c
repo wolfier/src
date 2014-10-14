@@ -6,10 +6,27 @@
 
 #include "threads/vaddr.h"
 #include "filesys/filesys.h"
-#include "threads/syscall-nr.h"
+#include "devices/shutdown.h"
+#include "userprog/pagedir.h"
+
 
 static void syscall_handler (struct intr_frame *);
-void check_pointer(uint32_t *addr);
+typedef int pid_t;
+
+void check_pointer(void *addr);
+void halt (void);
+void close (int fd);
+unsigned tell (int fd);
+void seek (int fd, unsigned position);
+int write (int fd, const void *buffer, unsigned size);
+int read (int fd, void *buffer, unsigned size);
+int filesize (int fd);
+int open (const char *file);
+bool remove (const char *file);
+bool create (const char *file, unsigned initial_size);
+int wait (pid_t pid);
+pid_t exec (const char *cmd_line);
+void exit (int status);
 
 void
 syscall_init (void) 
@@ -30,7 +47,7 @@ syscall_handler (struct intr_frame *f)
   
   // printf("==================================\n");
   // terminating the offending process and freeing its resources. 
-  // if poiner is invalid 
+  // if pointer is invalid 
   // user can pass a null pointer
   // a pointer to unmapped virtual memory,
   //  get_page_dir()
@@ -46,11 +63,9 @@ syscall_handler (struct intr_frame *f)
       // Terminates Pintos by calling shutdown_power_off() (declared in "devices/shutdown.h").
       // This should be seldom used, because you lose some information about 
       // possible deadlock situations, etc. 
-      shutdown_power_off();
   		break;
   	/* 1. Terminate this process. */
   	case SYS_EXIT:
-
       // Terminates the current user program, returning status to the kernel. If the process's parent waits for it (see below), this is the status that will be returned. Conventionally, a status of 0 indicates success and nonzero values indicate errors. 
   		break;
   	/* 2. Start another process. */
@@ -67,7 +82,6 @@ syscall_handler (struct intr_frame *f)
     	break;   
     /* 6. Open a file. */
     case SYS_OPEN:
-
       // Get the first arguement and check validity
       check_pointer(p+4);
       char *file = (char *)(p+4);
@@ -101,7 +115,7 @@ void check_pointer(void *addr){
   // Check the following: 
   // a pointer to unmapped virtual memory,
   // a pointer to kernel virtual address space (above PHYS_BASE)
-  if(is_kernal_vaddr(addr) || get_page_dir(pd, addr) == NULL){    
+  if(is_kernel_vaddr(addr) || pagedir_get_page(pd, addr) == NULL){    
     // Free resources: Locks, Page Directories
     if (pd != NULL) 
     {
@@ -129,7 +143,7 @@ void check_pointer(void *addr){
 void 
 halt (void)
 {
-
+  shutdown_power_off();
 }
 
 /* Terminates the current user program, returning status
@@ -220,7 +234,8 @@ wait (pid_t pid)
    opening the new file is a separate operation which 
    would require a open system call. */
 bool 
-create (const char *file, unsigned initial_size) 
+create (const char *file, unsigned initial_size)
+
 {
 
 }
