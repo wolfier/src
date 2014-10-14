@@ -60,9 +60,7 @@ syscall_handler (struct intr_frame *f)
   switch (sys_call_num){
   	/* 0. Halt the operating system. */
   	case SYS_HALT:
-      // Terminates Pintos by calling shutdown_power_off() (declared in "devices/shutdown.h").
-      // This should be seldom used, because you lose some information about 
-      // possible deadlock situations, etc. 
+      halt();
   		break;
   	/* 1. Terminate this process. */
   	case SYS_EXIT:
@@ -76,9 +74,17 @@ syscall_handler (struct intr_frame *f)
   		break;
     /* 4. Create a file. */
     case SYS_CREATE:
+      check_pointer(p+4);
+      check_pointer(p+8);
+      unsigned initial_size = (unsigned)(p+8);
+      char *file = (char *)(p+4);
+      create(file);
     	break;
    	/* 5. Delete a file. */         
     case SYS_REMOVE:
+      check_pointer(p+4);
+      char *file = (char *)(p+4);
+      remove(file);
     	break;   
     /* 6. Open a file. */
     case SYS_OPEN:
@@ -89,23 +95,51 @@ syscall_handler (struct intr_frame *f)
    		break;
   	/* 7. Obtain a file's size. */
     case SYS_FILESIZE:
+      check_pointer(p+4);
+      int fd = (int)(p+4);
+      filesize(fd);
+      break;
     /* 8. Read from a file. */              
     case SYS_READ:
+      check_pointer(p+4);
+      check_pointer(p+8);
+      check_pointer(p+12);
+      unsigned size = (unsigned)(p+12);
+      void *buffer = (p+8);
+      int fd = (int)(p+4);
     	break;         
     /* 9. Write to a file. */
     case SYS_WRITE:
+      check_pointer(p+4);
+      check_pointer(p+8);
+      check_pointer(p+12);
+      unsigned size = (unsigned)(p+12);
+      void *buffer = (p+8);
+      int fd = (int)(p+4);
+      write(fd, buffer, size);
     	break;     
     /* 10. Change position in a file. */           
     case SYS_SEEK:
+      check_pointer(p+4);
+      check_pointer(p+8);
+      unsigned position = (unsigned)(p+8);
+      int fd = (int)(p+4);
+      seek(fd, position);
     	break; 
     /* 11. Report current position in a file. */
     case SYS_TELL:
+      check_pointer(p+4);
+      int fd = (int)(p+4);
+      tell(fd);
     	break; 
    	/* 12. Close a file. */      
     case SYS_CLOSE:
+      check_pointer(p+4);
+      int fd = (int)(p+4);
+      close(fd);
     	break;
   }
-  // thread_exit ();
+  thread_exit ();
 }
 
 void check_pointer(void *addr){
@@ -225,7 +259,7 @@ exec (const char *cmd_line)
 int 
 wait (pid_t pid) 
 {
-
+  //wut
 }
 
 /* Creates a new file called file initially initial_size
@@ -235,8 +269,9 @@ wait (pid_t pid)
    would require a open system call. */
 bool 
 create (const char *file, unsigned initial_size)
-
 {
+  //Creates a a file named file with size of initial_size
+  return filesys_create(file, initial_size);
 
 }
 /* Deletes the file called file. Returns true if 
@@ -247,7 +282,18 @@ create (const char *file, unsigned initial_size)
 bool 
 remove (const char *file) 
 {
+  /*
+    have to go through each process to see what is still accessing
+    the file/file descriptor and wait for the process to finish.
+  */
+  //Only the last part
 
+  /*
+    if(look through process list(has file descriptor))
+      wait for it to terminate
+    then return filesys_remove(file);
+  */
+  return filesys_remove(file);
 }
 
 /* Opens the file called file. Returns a nonnegative 
@@ -297,7 +343,8 @@ open (const char *file)
 int
 filesize (int fd)
 {
-
+  //file_length returns the size of File in bytes
+  return file_length(fd);
 }
 
 /* Reads size bytes from the file open as fd into buffer. 
@@ -308,7 +355,11 @@ filesize (int fd)
 int 
 read (int fd, void *buffer, unsigned size)
 {
-
+  //Not sure if this is correct? Don't feel like it is
+  if(file_read(fd, buffer, size))
+    return 0;
+  else
+    return -1;
 }
 
 /* Writes size bytes from buffer to the open file fd.
@@ -330,7 +381,8 @@ read (int fd, void *buffer, unsigned size)
 int 
 write (int fd, const void *buffer, unsigned size)
 {
-
+  //file_write accomplishes this
+  return file_write(fd, buffer, size);
 }
 
 /* Changes the next byte to be read or written in open file 
@@ -348,7 +400,8 @@ write (int fd, const void *buffer, unsigned size)
 void
 seek (int fd, unsigned position)
 {
-
+  //file_seek sets the current position in FILE to a new position
+  file_seek(fd, position);
 }
 
 /* Returns the position of the next byte to be read or written
@@ -357,7 +410,8 @@ seek (int fd, unsigned position)
 unsigned
 tell (int fd)
 {
-
+  //file_tell takes in a file and returns the current position in file
+  return file_tell(fd);
 }
 
 /* Closes file descriptor fd. Exiting or terminating a process
@@ -366,5 +420,6 @@ tell (int fd)
 void 
 close (int fd)
 {
-
+  //file_close closes the FILE
+  file_close(fd);
 }
