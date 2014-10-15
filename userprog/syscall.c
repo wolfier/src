@@ -8,7 +8,7 @@
 #include "filesys/filesys.h"
 #include "devices/shutdown.h"
 #include "userprog/pagedir.h"
-
+#include "filesys/file.h";
 
 static void syscall_handler (struct intr_frame *);
 typedef int pid_t;
@@ -65,12 +65,21 @@ syscall_handler (struct intr_frame *f)
   	/* 1. Terminate this process. */
   	case SYS_EXIT:
       // Terminates the current user program, returning status to the kernel. If the process's parent waits for it (see below), this is the status that will be returned. Conventionally, a status of 0 indicates success and nonzero values indicate errors. 
-  		break;
+  		check_pointer(p+4);
+      int status = (int)(p+4);
+      exit(status);
+      break;
   	/* 2. Start another process. */
   	case SYS_EXEC:
+      check_pointer(p+4);
+      const char *cmd_line = (const char *)(p+4);
+      exec(cmd_line);
   		break;
  	  /* 3. Wait for a child process to die. */
   	case SYS_WAIT:
+      check_pointer(p+4);
+      pid_t pid = (pid_t)(p+4);
+      wait(pid);
   		break;
     /* 4. Create a file. */
     case SYS_CREATE:
@@ -78,20 +87,20 @@ syscall_handler (struct intr_frame *f)
       check_pointer(p+8);
       unsigned initial_size = (unsigned)(p+8);
       char *file = (char *)(p+4);
-      create(file);
+      create(file,initial_size);
     	break;
    	/* 5. Delete a file. */         
     case SYS_REMOVE:
       check_pointer(p+4);
-      char *file = (char *)(p+4);
-      remove(file);
+      char *file_1 = (char *)(p+4);
+      remove(file_1);
     	break;   
     /* 6. Open a file. */
     case SYS_OPEN:
       // Get the first arguement and check validity
       check_pointer(p+4);
-      char *file = (char *)(p+4);
-      open(file);
+      char *file_2 = (char *)(p+4);
+      open(file_2);
    		break;
   	/* 7. Obtain a file's size. */
     case SYS_FILESIZE:
@@ -106,37 +115,38 @@ syscall_handler (struct intr_frame *f)
       check_pointer(p+12);
       unsigned size = (unsigned)(p+12);
       void *buffer = (p+8);
-      int fd = (int)(p+4);
+      int fd_1 = (int)(p+4);
+      read(fd_1,buffer,size);
     	break;         
     /* 9. Write to a file. */
     case SYS_WRITE:
       check_pointer(p+4);
       check_pointer(p+8);
       check_pointer(p+12);
-      unsigned size = (unsigned)(p+12);
-      void *buffer = (p+8);
-      int fd = (int)(p+4);
-      write(fd, buffer, size);
+      unsigned size_1 = (unsigned)(p+12);
+      void *buffer_1 = (p+8);
+      int fd_2 = (int)(p+4);
+      write(fd_2, buffer_1, size_1);
     	break;     
     /* 10. Change position in a file. */           
     case SYS_SEEK:
       check_pointer(p+4);
       check_pointer(p+8);
       unsigned position = (unsigned)(p+8);
-      int fd = (int)(p+4);
-      seek(fd, position);
+      int fd_3 = (int)(p+4);
+      seek(fd_3, position);
     	break; 
     /* 11. Report current position in a file. */
     case SYS_TELL:
       check_pointer(p+4);
-      int fd = (int)(p+4);
-      tell(fd);
+      int fd_4 = (int)(p+4);
+      tell(fd_4);
     	break; 
    	/* 12. Close a file. */      
     case SYS_CLOSE:
       check_pointer(p+4);
-      int fd = (int)(p+4);
-      close(fd);
+      int fd_5 = (int)(p+4);
+      close(fd_5);
     	break;
   }
   thread_exit ();
@@ -271,7 +281,7 @@ bool
 create (const char *file, unsigned initial_size)
 {
   //Creates a a file named file with size of initial_size
-  return filesys_create(file, initial_size);
+  return filesys_create(file, (off_t)initial_size);
 
 }
 /* Deletes the file called file. Returns true if 
@@ -344,7 +354,7 @@ int
 filesize (int fd)
 {
   //file_length returns the size of File in bytes
-  return file_length(fd);
+  return file_length((struct file *)fd);
 }
 
 /* Reads size bytes from the file open as fd into buffer. 
@@ -356,7 +366,7 @@ int
 read (int fd, void *buffer, unsigned size)
 {
   //Not sure if this is correct? Don't feel like it is
-  if(file_read(fd, buffer, size))
+  if(file_read((struct file *)fd, buffer,(off_t)size))
     return 0;
   else
     return -1;
@@ -382,7 +392,7 @@ int
 write (int fd, const void *buffer, unsigned size)
 {
   //file_write accomplishes this
-  return file_write(fd, buffer, size);
+  return file_write((struct file *)fd, buffer,(off_t)size);
 }
 
 /* Changes the next byte to be read or written in open file 
@@ -401,7 +411,7 @@ void
 seek (int fd, unsigned position)
 {
   //file_seek sets the current position in FILE to a new position
-  file_seek(fd, position);
+  file_seek((struct file *)fd, (off_t)position);
 }
 
 /* Returns the position of the next byte to be read or written
@@ -411,7 +421,7 @@ unsigned
 tell (int fd)
 {
   //file_tell takes in a file and returns the current position in file
-  return file_tell(fd);
+  return file_tell((struct file *)fd);
 }
 
 /* Closes file descriptor fd. Exiting or terminating a process
@@ -421,5 +431,5 @@ void
 close (int fd)
 {
   //file_close closes the FILE
-  file_close(fd);
+  file_close((struct file *)fd);
 }
