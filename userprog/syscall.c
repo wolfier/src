@@ -392,7 +392,10 @@ int
 write (int fd, const void *buffer, unsigned size)
 {
   //file_write accomplishes this
-  return file_write((struct file *)fd, buffer,(off_t)size);
+  file_deny_write((struct file *)fd);
+  int x = (int)file_write((struct file *)fd, buffer,(off_t)size);
+  file_allow_write((struct file *)fd);
+  return x;
 }
 
 /* Changes the next byte to be read or written in open file 
