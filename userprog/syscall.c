@@ -9,6 +9,7 @@
 #include "devices/shutdown.h"
 #include "userprog/pagedir.h"
 #include "filesys/file.h";
+#include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 typedef int pid_t;
@@ -198,7 +199,8 @@ halt (void)
 void 
 exit (int status)
 {
-
+	thread_current()->exit_status = status;
+	thread_exit();
 }
 /* Runs the executable whose name is given in cmd_line,
    passing any given arguments, and returns the new process's
@@ -211,7 +213,8 @@ exit (int status)
 pid_t 
 exec (const char *cmd_line)
 {
-
+	int x = process_execute(cmd_line);
+	return x;
 }
 
 /* Waits for a child process pid and retrieves the child's
@@ -269,7 +272,15 @@ exec (const char *cmd_line)
 int 
 wait (pid_t pid) 
 {
+	struct thread *cur = thread_current();
+	if(cur->called_wait)
+		return -1;
+	
   //wut
+	//Yeah, this will totally work -Austin
+	cur->called_wait = true;
+	int x = process_wait(pid);
+	return x;
 }
 
 /* Creates a new file called file initially initial_size
@@ -343,7 +354,7 @@ open (const char *file)
   else
   {
     // Add the current file's file descriptor to a list
-  }
+	}
 
   // Return file descriptor
   return fd;

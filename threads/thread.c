@@ -203,9 +203,12 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+	
+	t->called_wait = false;
+	sema_init(&t->exit_sema,0);
 
   intr_set_level (old_level);
-
+	
   /* Add to run queue. */
   thread_unblock (t);
 
