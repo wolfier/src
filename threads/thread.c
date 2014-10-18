@@ -203,10 +203,12 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-	
+	t->exit_status = 0;
 	t->called_wait = false;
+	t->exited = false;
+	t->parent = thread_current();
 	sema_init(&t->exit_sema,0);
-
+	sema_init(&t->wait_sema,0);
   intr_set_level (old_level);
 	
   /* Add to run queue. */
@@ -295,7 +297,20 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
-  process_exit ();
+	struct list_elem *elem_1;
+	struct thread *dummy = NULL;
+	struct thread *cur = thread_current();
+	for(elem_1 = list_begin(&cur->child_threads);elem_1 != list_end(&cur->child_threads); elem_1 = list_next(elem_1)){
+		dummy = list_entry(elem_1,struct thread, child_elem);
+		if(dummy->exited)
+			sema_up(&dummy->exit_sema);
+		else{
+			dummy->parent = NULL;
+			list_remove(&dummy->child_elem);
+		}
+	}
+
+	process_exit();
 #endif
 
   /* Remove thread from all threads list, set our status to dying,

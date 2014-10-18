@@ -51,8 +51,10 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (exe, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
+		return TID_ERROR;
+	}
   palloc_free_page (copy);
 
   return tid;
@@ -99,12 +101,29 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  while(true){
+  struct thread *child = NULL;
+	struct thread *dummy = NULL;
+	struct thread *cur = thread_current();
+	
+	struct list_elem *elem;
+	for(elem = list_begin((&cur->all_list)); elem != list_end(&(cur->all_list));elem = list_next(elem)){
+		dummy = list_entry(elem,struct thread,allelm);
+		if(dummy->tid == child_tid)
+			child = dummy;
+	}
 
-  }
-  return -1;
+	if(!child || child->parent != cur || cur->called_wait)
+		return -1;
+	else if(child->exit_status != 0 || child->exited == true)
+		return child->exit_status;
+	sema_down(&child->wait_sema);
+	int ret = child->exit_status;
+	sema_up(&child->exit_sema);
+	child->called_wait = true;
+	
+	return ret;
 }
 
 /* Free the current process's resources. */

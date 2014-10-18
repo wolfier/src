@@ -99,8 +99,11 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-		struct semaphore exit_sema;
 		int exit_status;
+		struct semaphore wait_sema;
+		struct semaphore exit_sema;
+		struct thread *parent;
+		bool exited;
 		bool called_wait;
 #endif
 
