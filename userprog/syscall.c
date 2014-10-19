@@ -74,13 +74,13 @@ syscall_handler (struct intr_frame *f)
   	case SYS_EXEC:
       check_pointer(p+4);
       const char *cmd_line = (const char *)(p+4);
-      exec(cmd_line);
+      f->eax = exec(cmd_line);
   		break;
  	  /* 3. Wait for a child process to die. */
   	case SYS_WAIT:
       check_pointer(p+4);
       pid_t pid = (pid_t)(p+4);
-      wait(pid);
+      f->eax = wait(pid);
   		break;
     /* 4. Create a file. */
     case SYS_CREATE:
@@ -88,26 +88,26 @@ syscall_handler (struct intr_frame *f)
       check_pointer(p+8);
       unsigned initial_size = (unsigned)(p+8);
       char *file = (char *)(p+4);
-      create(file,initial_size);
+      f->eax = create(file,initial_size);
     	break;
    	/* 5. Delete a file. */         
     case SYS_REMOVE:
       check_pointer(p+4);
       char *file_1 = (char *)(p+4);
-      remove(file_1);
+      f->eax = remove(file_1);
     	break;   
     /* 6. Open a file. */
     case SYS_OPEN:
       // Get the first arguement and check validity
       check_pointer(p+4);
       char *file_2 = (char *)(p+4);
-      open(file_2);
+      f->eax = open(file_2);
    		break;
   	/* 7. Obtain a file's size. */
     case SYS_FILESIZE:
       check_pointer(p+4);
       int fd = (int)(p+4);
-      filesize(fd);
+      f->eax = filesize(fd);
       break;
     /* 8. Read from a file. */              
     case SYS_READ:
@@ -117,7 +117,7 @@ syscall_handler (struct intr_frame *f)
       unsigned size = (unsigned)(p+12);
       void *buffer = (p+8);
       int fd_1 = (int)(p+4);
-      read(fd_1,buffer,size);
+      f->eax = read(fd_1,buffer,size);
     	break;         
     /* 9. Write to a file. */
     case SYS_WRITE:
@@ -127,7 +127,7 @@ syscall_handler (struct intr_frame *f)
       unsigned size_1 = (unsigned)(p+12);
       void *buffer_1 = (p+8);
       int fd_2 = (int)(p+4);
-      write(fd_2, buffer_1, size_1);
+      f->eax = write(fd_2, buffer_1, size_1);
     	break;     
     /* 10. Change position in a file. */           
     case SYS_SEEK:
@@ -141,7 +141,7 @@ syscall_handler (struct intr_frame *f)
     case SYS_TELL:
       check_pointer(p+4);
       int fd_4 = (int)(p+4);
-      tell(fd_4);
+      f->eax = tell(fd_4);
     	break; 
    	/* 12. Close a file. */      
     case SYS_CLOSE:
@@ -199,6 +199,7 @@ halt (void)
 void 
 exit (int status)
 {
+  thread_current()->exited = true;
 	thread_current()->exit_status = status;
 	thread_exit();
 }

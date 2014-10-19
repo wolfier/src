@@ -103,6 +103,10 @@ struct thread
 		struct semaphore wait_sema;
 		struct semaphore exit_sema;
 		struct thread *parent;
+    struct list held_locks;
+    struct list open_files;
+    struct list child_threads;
+    struct list_elem child_elem;
 		bool exited;
 		bool called_wait;
 #endif
@@ -146,5 +150,6 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+struct list_elem *thread_get_child(tid_t);
 
 #endif /* threads/thread.h */

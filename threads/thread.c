@@ -206,6 +206,7 @@ thread_create (const char *name, int priority,
 	t->exit_status = 0;
 	t->called_wait = false;
 	t->exited = false;
+  list_push_front(&(thread_current()->child_threads),&t->child_elem);
 	t->parent = thread_current();
 	sema_init(&t->exit_sema,0);
 	sema_init(&t->wait_sema,0);
@@ -307,7 +308,8 @@ thread_exit (void)
 		else{
 			dummy->parent = NULL;
 			list_remove(&dummy->child_elem);
-		}
+		  sema_up(&dummy->exit_sema);
+    }
 	}
 
 	process_exit();
@@ -599,6 +601,27 @@ allocate_tid (void)
   lock_release (&tid_lock);
 
   return tid;
+}
+
+//Written by Zach, around 4:45pm Oct 14th
+struct list_elem *
+thread_get_child(tid_t child_tid){
+  struct thread *t;
+  struct thread *cur = thread_current();
+  struct list_elem *child;
+  enum intr_level old_level = intr_disable();
+  for(child = list_begin(&cur->child_threads);
+      child != list_end(&cur->child_threads);
+      child = list_next(child)){
+    t = list_entry(child,struct thread,child_elem);
+    ASSERT(is_thread(t))
+    if(t->tid == child_tid){
+      intr_set_level(old_level);
+      return child;
+    }
+  }
+  intr_set_level(old_level);
+  return NULL;
 }
 
 /* Offset of `stack' member within `struct thread'.
