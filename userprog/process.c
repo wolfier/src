@@ -17,6 +17,8 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
+
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -51,10 +53,9 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (exe, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR){
+
+  if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-		return TID_ERROR;
-	}
   palloc_free_page (copy);
 
   return tid;
@@ -103,27 +104,22 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  struct thread *child = NULL;
-	struct thread *dummy = NULL;
-	struct thread *cur = thread_current();
-	
-	struct list_elem *elem;
-	for(elem = list_begin((&cur->child_threads)); elem != list_end(&(cur->child_threads));elem = list_next(elem)){
-		dummy = list_entry(elem,struct thread,child_elem);
-		if(dummy->tid == child_tid)
-			child = dummy;
-	}
+  struct thread *cur = thread_current ();
+  struct list_elem *le;
+  struct thread *t = NULL;
+  int ret = 0;
 
-	if(!child || child->parent != cur || cur->called_wait)
-		return -1;
-	else if(child->exit_status != 0 || child->exited == true)
-		return child->exit_status;
-	sema_down(&child->wait_sema);
-	int ret = child->exit_status;
-	sema_up(&child->exit_sema);
-	child->called_wait = true;
-	
-	return ret;
+  for(le = list_begin(&cur->child_list);
+    le != list_end(&cur->child_list);
+    le=list_next(le)){
+    t = list_entry(le, struct thread, childelem);
+    if(t->tid == child_tid){
+      sema_down(&cur->wait_sema);
+      ret = t->exit_status;
+      sema_up(&t->wait_sema);
+    }
+  }
+  return t->exit_status;
 }
 
 /* Free the current process's resources. */
@@ -133,15 +129,8 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  // struct list_elem file_elem_1 = NULL;
-  // for(file_elem_1 = list_begin(&cur->open_files);file_elem_1 != list_end(&cur->open_files);file_elem_1 = list_next(file_elem_1)){
-  //    struct file *foo_file = list_entry(file_elem_1,struct file,file_elem); 
-  // }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
-  sema_up(&cur->wait_sema);
-  //if(&cur->parent != idle_thread)
-  sema_down(&cur->exit_sema);
   pd = cur->pagedir;
   if (pd != NULL) 
     {
@@ -156,7 +145,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-
+    sema_up(&cur->parent_thread->wait_sema);
+    sema_down(&cur->wait_sema);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -496,7 +486,7 @@ setup_stack (void **esp, const char *cmd_line)
       else
         palloc_free_page (kpage);
     }
-  // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+  hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
   return success;
 }
 

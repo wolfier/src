@@ -184,6 +184,12 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+#ifdef USERPROG
+  struct thread *cur = thread_current ();
+  list_push_back (&cur->child_list, &t->childelem);
+  t->parent_thread = cur;
+#endif
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -203,15 +209,13 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-	t->exit_status = 0;
-	t->called_wait = false;
-	t->exited = false;
-  list_push_front(&(thread_current()->child_threads),&t->child_elem);
-	t->parent = thread_current();
-	sema_init(&t->exit_sema,0);
-	sema_init(&t->wait_sema,0);
+
+  /* Additional attributes */
+  t->exit_status = 0;
+  /* End of additional attributes */
+
   intr_set_level (old_level);
-	
+
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -298,21 +302,7 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
-	struct list_elem *elem_1;
-	struct thread *dummy = NULL;
-	struct thread *cur = thread_current();
-	for(elem_1 = list_begin(&cur->child_threads);elem_1 != list_end(&cur->child_threads); elem_1 = list_next(elem_1)){
-		dummy = list_entry(elem_1,struct thread, child_elem);
-		if(dummy->exited)
-			sema_up(&dummy->exit_sema);
-		else{
-			dummy->parent = NULL;
-			list_remove(&dummy->child_elem);
-		  sema_up(&dummy->exit_sema);
-    }
-	}
-
-	process_exit();
+  process_exit ();
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
@@ -490,6 +480,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+#ifdef USERPROG
+  sema_init(&(t->wait_sema), 0);
+  list_init(&(t->child_list));
+#endif
+
   list_push_back (&all_list, &t->allelem);
 }
 
@@ -601,27 +597,6 @@ allocate_tid (void)
   lock_release (&tid_lock);
 
   return tid;
-}
-
-//Written by Zach, around 4:45pm Oct 14th
-struct list_elem *
-thread_get_child(tid_t child_tid){
-  struct thread *t;
-  struct thread *cur = thread_current();
-  struct list_elem *child;
-  enum intr_level old_level = intr_disable();
-  for(child = list_begin(&cur->child_threads);
-      child != list_end(&cur->child_threads);
-      child = list_next(child)){
-    t = list_entry(child,struct thread,child_elem);
-    ASSERT(is_thread(t))
-    if(t->tid == child_tid){
-      intr_set_level(old_level);
-      return child;
-    }
-  }
-  intr_set_level(old_level);
-  return NULL;
 }
 
 /* Offset of `stack' member within `struct thread'.
