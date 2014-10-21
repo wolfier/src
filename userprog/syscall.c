@@ -40,10 +40,14 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  // printf("==================================\n");
+  struct thread *cur = thread_current ();
+  // printf("%s\n", cur->name);
+
   void *p = f->esp;
+  check_pointer(p);
   int sys_call_num = *(int *)p;
-  // printf("%d\n", sys_call_num);
+  // printf("==================================\n");
+  printf("%d\n", sys_call_num);
   // printf("==================================\n");
 
 
@@ -55,13 +59,8 @@ syscall_handler (struct intr_frame *f)
 
     /* 1. Terminate this process. */
     case SYS_EXIT:
-      // Terminates the current user program, returning status to the kernel.
-      // If the process's parent waits for it (see below), this is the status
-      // that will be returned. Conventionally, a status of 0 indicates success
-      // and nonzero values indicate errors.
       check_pointer(p+4);
-      int status = (int)(p+4);
-      exit(status);
+      exit(*(int *)(p+4));
       break;
 
     /* 2. Start another process. */
@@ -80,11 +79,9 @@ syscall_handler (struct intr_frame *f)
 
     /* 4. Create a file. */
     case SYS_CREATE:
-      // check_pointer(p+4);
-      // check_pointer(p+8);
-      // unsigned initial_size = (unsigned)(p+8);
-      // char *file = (char *)(p+4);
-      // f->eax = create(file,initial_size);
+      check_pointer(*(char **)(p+4));
+      check_pointer(p+8);
+      f->eax = create(*(char **)(p+4),*(unsigned *)(p+8));
       break;
     /* 5. Delete a file. */
     case SYS_REMOVE:
@@ -94,10 +91,8 @@ syscall_handler (struct intr_frame *f)
       break;
     /* 6. Open a file. */
     case SYS_OPEN:
-      // Get the first arguement and check validity
-      // check_pointer(p+4);
-      // char *file_2 = (char *)(p+4);
-      // f->eax = open(file_2);
+      check_pointer(*(char **)(p+4));
+      f->eax = open(*(char **)(p+4));
       break;
     /* 7. Obtain a file's size. */
     case SYS_FILESIZE:
@@ -118,10 +113,9 @@ syscall_handler (struct intr_frame *f)
     /* 9. Write to a file. */
     case SYS_WRITE:
       check_pointer(p+4);
-      check_pointer(p+8);
+      check_pointer(*(void **)(p+8));
       check_pointer(p+12);
-      // hex_dump(p, p, PHYS_BASE-p, 1);
-      f->eax = write(*(int *)(p+4), p+8, *(unsigned *)(p+12));
+      f->eax = write(*(int *)(p+4), *(void **)(p+8), *(unsigned *)(p+12));
       break;
     /* 10. Change position in a file. */
     case SYS_SEEK:
@@ -146,15 +140,18 @@ syscall_handler (struct intr_frame *f)
   }
 }
 
-void check_pointer(void *addr){
+/* Check the following:
+   a pointer to unmapped virtual memory,
+   a pointer to kernel virtual address space (above PHYS_BASE) */
+void
+check_pointer(void *addr){
   struct thread *cur = thread_current ();
   uint32_t *pd = cur->pagedir;
 
-    // Check the following:
-    // a pointer to unmapped virtual memory,
-    // a pointer to kernel virtual address space (above PHYS_BASE)
-    if(is_kernel_vaddr(addr) || pagedir_get_page(pd, addr) == NULL || addr == NULL){
-      thread_exit();
+    if(is_kernel_vaddr(addr) ||
+      pagedir_get_page(pd, addr) == NULL ||
+      addr == NULL){
+      exit(-1);
     }
 }
 
@@ -264,8 +261,7 @@ would require a open system call. */
 bool
 create (const char *file, unsigned initial_size)
 {
-  //Creates a a file named file with size of initial_size
-  return filesys_create(file, (off_t)initial_size);
+  return filesys_create(file,(off_t)initial_size);
 }
 
 /* Deletes the file called file. Returns true if
@@ -312,22 +308,23 @@ calls to close and they do not share a file position. */
 int
 open (const char *file)
 {
+  printf("====%s\n", file);
   // File descriptor
   int fd = -1;
-
   // // Get the current thread
-  // struct thread *cur = thread_current ();
+  struct thread *cur = thread_current ();
 
-  // // Opens the file called file
-  // // Add the current file's file descriptor to a list
-  // if(filesys_open(file) == NULL)
-  // {
-  // fd = -1;
-  // }
-  // else
-  // {
-  // // Add the current file's file descriptor to a list
-  // }
+  // Opens the file called file
+  // Add the current file's file descriptor to a list
+  if(filesys_open(file) == NULL)
+  {
+    fd = -1;
+  }
+  else
+  {
+    // Add the current file's file descriptor to a list
+    fd = 2;
+  }
 
   // // Return file descriptor
   return fd;
@@ -375,19 +372,19 @@ both human readers and our grading scripts. */
 int
 write (int fd, const void *buffer, unsigned size)
 {
+
+  struct thread *cur = thread_current ();
+  // printf("%d\n",cur->tid);
 	
   int x = 0;
-	char *buffer_copy; 
+	// char *buffer_copy = palloc_get_page(0);
+  // strlcpy((char *)&buffer_copy,(char *)buffer,strlen(buffer)+1);
+
   // printf("%d\n", fd);
 
   if(fd == 1){
-		buffer_copy = palloc_get_page(0);
-		strlcpy((char *)&buffer_copy,(const char *)buffer,strlen(buffer)+1);
-    putbuf((const char *)buffer_copy, size);
-    //buffer_copy = NULL;
-		//printf("%d, %d, %s\n",fd, size,(char *)buffer_copy);  
-    //palloc_free_page(buffer_copy);
-}else{
+    putbuf((char *)buffer, size);
+  }else{
 
   }
   // else if(find_file(fd)!=-1){
@@ -395,8 +392,7 @@ write (int fd, const void *buffer, unsigned size)
   //     x = (int)file_write((struct file *)fd, buffer,(off_t)size);
   // }
   // file_allow_write((struct file *)fd);
-  //palloc_free_page(buffer_copy);
-	return x;
+	return size;
 }
 
 /* Changes the next byte to be read or written in open file

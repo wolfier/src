@@ -96,7 +96,7 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    struct list child_list;             /* Chils list */
+    struct list child_list;             /* Childs list */
     struct list_elem childelem;         /* List element for child list. */
 
 #ifdef USERPROG
@@ -104,12 +104,20 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
     int exit_status;                    /* Exit status */
     bool called_wait;
-    struct semaphore wait_sema;        /* Wait status */
+    struct semaphore wait_sema;         /* Wait status */
     struct thread *parent_thread;       /* Parent thread */
+    struct list file_list;              /* File list */
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+  };
+
+struct file_fd
+  {
+    struct file* file;
+    struct list_elem fileelem;
+    int fd;
   };
 
 /* If false (default), use round-robin scheduler.

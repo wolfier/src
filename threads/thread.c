@@ -473,7 +473,7 @@ init_thread (struct thread *t, const char *name, int priority)
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
-
+  // enum intr_level old_level = intr_disable();
   memset (t, 0, sizeof *t);
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
@@ -484,8 +484,10 @@ init_thread (struct thread *t, const char *name, int priority)
 #ifdef USERPROG
   sema_init(&(t->wait_sema), 0);
   list_init(&(t->child_list));
+  
 #endif
 
+  // intr_set_level(old_level);
   list_push_back (&all_list, &t->allelem);
 }
 

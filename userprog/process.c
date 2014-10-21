@@ -40,8 +40,9 @@ process_execute (const char *file_name)
   if (copy == NULL)
     return TID_ERROR;
 
-  strlcpy(copy, file_name, strlen(file_name));
+  strlcpy(copy, file_name, strlen(file_name)+1);
   char *exe = strtok_r(copy, " ", &saved);
+
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -56,7 +57,6 @@ process_execute (const char *file_name)
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  palloc_free_page (copy);
 
   return tid;
 }
@@ -113,13 +113,13 @@ process_wait (tid_t child_tid)
     le != list_end(&cur->child_list);
     le=list_next(le)){
     t = list_entry(le, struct thread, childelem);
-    if(t->tid == child_tid){
+    if(t->tid == child_tid){  
       sema_down(&cur->wait_sema);
       ret = t->exit_status;
       sema_up(&t->wait_sema);
     }
   }
-  return t->exit_status;
+  return ret;
 }
 
 /* Free the current process's resources. */
@@ -256,7 +256,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  /* Need to free */
   char *copy = palloc_get_page (0);
   char *saved;
 
@@ -526,6 +525,7 @@ load_stack(void **esp, const char *cmd_line){
   strlcpy(copy, cmd_line, strlen(cmd_line)+1);
   argv[i] = strtok_r(copy," \0",&saved);
 
+
   while(argv[i])
     argv[++i] = strtok_r(NULL," \0",&saved);
 
@@ -543,14 +543,15 @@ load_stack(void **esp, const char *cmd_line){
     }
   }
 
+
   uint32_t offset = (uint32_t)csp % 4;
 
   // Word align stack pointer down to a multiple of 4 
   csp -= sizeof(uint8_t)*offset;
 
   // Push null sentinal to denote end of array
-  memcpy(csp, &null, 1);
   csp -= sizeof(char*);
+  memcpy(csp, &null, 1);
 
   // Push address of each element of char[]
   void *p = PHYS_BASE;
@@ -575,4 +576,6 @@ load_stack(void **esp, const char *cmd_line){
 
   // Set esp to csp 
   *esp = csp;
+
+
 }
