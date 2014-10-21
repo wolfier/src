@@ -10,6 +10,8 @@
 #include "userprog/pagedir.h"
 #include "filesys/file.h"
 #include "userprog/process.h"
+#include "lib/string.h"
+#include "threads/palloc.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -38,11 +40,11 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  printf("==================================\n");
+  // printf("==================================\n");
   void *p = f->esp;
   int sys_call_num = *(int *)p;
-  printf("%d\n", sys_call_num);
-  printf("==================================\n");
+  // printf("%d\n", sys_call_num);
+  // printf("==================================\n");
 
 
   switch (sys_call_num){
@@ -176,6 +178,7 @@ exit (int status)
 {
   struct thread *cur = thread_current ();
   cur->exit_status = status;
+  printf("%s: exit(%d)\n",cur->name,status);
   thread_exit();
 }
 
@@ -372,13 +375,19 @@ both human readers and our grading scripts. */
 int
 write (int fd, const void *buffer, unsigned size)
 {
+	
   int x = 0;
-
+	char *buffer_copy; 
   // printf("%d\n", fd);
 
   if(fd == 1){
-    putbuf((char *)buffer, size);
-  }else{
+		buffer_copy = palloc_get_page(0);
+		strlcpy((char *)&buffer_copy,(const char *)buffer,strlen(buffer)+1);
+    putbuf((const char *)buffer_copy, size);
+    //buffer_copy = NULL;
+		//printf("%d, %d, %s\n",fd, size,(char *)buffer_copy);  
+    //palloc_free_page(buffer_copy);
+}else{
 
   }
   // else if(find_file(fd)!=-1){
@@ -386,7 +395,8 @@ write (int fd, const void *buffer, unsigned size)
   //     x = (int)file_write((struct file *)fd, buffer,(off_t)size);
   // }
   // file_allow_write((struct file *)fd);
-  return x;
+  //palloc_free_page(buffer_copy);
+	return x;
 }
 
 /* Changes the next byte to be read or written in open file
