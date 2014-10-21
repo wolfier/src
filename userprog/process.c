@@ -486,7 +486,7 @@ setup_stack (void **esp, const char *cmd_line)
       else
         palloc_free_page (kpage);
     }
-  hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+  // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
   return success;
 }
 
