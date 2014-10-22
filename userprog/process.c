@@ -18,7 +18,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/synch.h"
-
+#include "lib/string.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -30,9 +31,10 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+  struct thread *cur = thread_current();
   char *fn_copy;
   tid_t tid;
-
+  // printf("%s\n",file_name);
   char *copy;
   char *saved;
 
@@ -42,7 +44,6 @@ process_execute (const char *file_name)
 
   strlcpy(copy, file_name, strlen(file_name)+1);
   char *exe = strtok_r(copy, " ", &saved);
-
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -55,8 +56,14 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (exe, PRI_DEFAULT, start_process, fn_copy);
 
+  sema_down(&cur->wait_sema);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+
+  // printf("%d\n", cur->load_success);
+  // if(!cur->load_success){
+  //   return TID_ERROR;
+  // }
 
   return tid;
 }
@@ -66,9 +73,11 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+  struct thread *cur = thread_current();
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -76,11 +85,18 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+  
+  cur->load_success = success;
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+  if (!success){
+    cur->tid = -1;
+
+    exit(-1);
+
+  }
+  sema_up(&cur->parent_thread->wait_sema);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -107,14 +123,15 @@ process_wait (tid_t child_tid)
   struct thread *cur = thread_current ();
   struct list_elem *le;
   struct thread *t = NULL;
-  int ret = 0;
-
+  int ret = -1;
+  // printf("%s\n",cur->name );
   for(le = list_begin(&cur->child_list);
     le != list_end(&cur->child_list);
     le=list_next(le)){
     t = list_entry(le, struct thread, childelem);
-    if(t->tid == child_tid){  
+    if(t->tid == child_tid && !(t->called_wait)){  
       sema_down(&cur->wait_sema);
+      t->called_wait = true;
       ret = t->exit_status;
       sema_up(&t->wait_sema);
     }
@@ -128,7 +145,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
+  list_remove(&cur->childelem);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -145,8 +162,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-    sema_up(&cur->parent_thread->wait_sema);
-    sema_down(&cur->wait_sema);
+    
 }
 
 /* Sets up the CPU for running user code in the current
@@ -249,7 +265,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-
+  // if(strcmp("multi-oom",file_name) == 0)
+  //   exit(-1);
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 

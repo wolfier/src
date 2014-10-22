@@ -28,7 +28,6 @@ bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
 int wait (pid_t pid);
 pid_t exec (const char *cmd_line);
-void exit (int status);
 
 
 void
@@ -65,16 +64,14 @@ syscall_handler (struct intr_frame *f)
 
     /* 2. Start another process. */
     case SYS_EXEC:
-      // check_pointer(p+4);
-      // const char *cmd_line = (const char *)(p+4);
-      // f->eax = exec(cmd_line);
+      check_pointer(*(char **)(p+4));
+      f->eax = exec(*(char **)(p+4));
       break;
 
     /* 3. Wait for a child process to die. */
     case SYS_WAIT:
-      // check_pointer(p+4);
-      // pid_t pid = (pid_t)(p+4);
-      // f->eax = wait(pid);
+      check_pointer(p+4);
+      f->eax = wait(*(pid_t *)(p+4));
       break;
 
     /* 4. Create a file. */
@@ -185,8 +182,8 @@ synchronization to ensure this. */
 pid_t
 exec (const char *cmd_line)
 {
-  int x = process_execute(cmd_line);
-  return x;
+  // printf("%s\n",cmd_line );
+  return process_execute(cmd_line);
 }
 
 
@@ -245,6 +242,7 @@ considerably more work than any of the rest. */
 int
 wait (pid_t pid)
 {
+  // printf("%s\n",thread_current()->name );
   return process_wait(pid);
 }
 

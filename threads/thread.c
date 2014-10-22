@@ -213,6 +213,7 @@ thread_create (const char *name, int priority,
   /* Additional attributes */
   t->exit_status = 0;
   t->fd_count = 2;
+  t->load_success = false;
   /* End of additional attributes */
 
   intr_set_level (old_level);
@@ -300,7 +301,10 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
+  struct thread *cur = thread_current();
   ASSERT (!intr_context ());
+  sema_up(&cur->parent_thread->wait_sema);
+  sema_down(&cur->wait_sema);
 
 #ifdef USERPROG
   process_exit ();
@@ -481,9 +485,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  sema_init(&(t->wait_sema), 0);
 
 #ifdef USERPROG
-  sema_init(&(t->wait_sema), 0);
   list_init(&(t->child_list));
 #endif
 

@@ -98,17 +98,17 @@ struct thread
 
     struct list child_list;             /* Childs list */
     struct list_elem childelem;         /* List element for child list. */
+    struct semaphore wait_sema;         /* Wait status */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     int exit_status;                    /* Exit status */
-    bool called_wait;
-    struct semaphore wait_sema;         /* Wait status */
+    bool called_wait;                   /* Wait status */
     struct thread *parent_thread;       /* Parent thread */
-    struct list file_list;              /* File list */
     int fd_count;                       /* File count */
-    struct file *files[128];
+    struct file *files[128];            /* File list */
+    bool load_success;                  /* load status */
 #endif
 
     /* Owned by thread.c. */
