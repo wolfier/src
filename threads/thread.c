@@ -212,6 +212,7 @@ thread_create (const char *name, int priority,
 
   /* Additional attributes */
   t->exit_status = 0;
+  t->fd_count = 2;
   /* End of additional attributes */
 
   intr_set_level (old_level);
@@ -484,7 +485,6 @@ init_thread (struct thread *t, const char *name, int priority)
 #ifdef USERPROG
   sema_init(&(t->wait_sema), 0);
   list_init(&(t->child_list));
-  
 #endif
 
   // intr_set_level(old_level);

@@ -107,17 +107,12 @@ struct thread
     struct semaphore wait_sema;         /* Wait status */
     struct thread *parent_thread;       /* Parent thread */
     struct list file_list;              /* File list */
+    int fd_count;                       /* File count */
+    struct file *files[128];
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-  };
-
-struct file_fd
-  {
-    struct file* file;
-    struct list_elem fileelem;
-    int fd;
   };
 
 /* If false (default), use round-robin scheduler.

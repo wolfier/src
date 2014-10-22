@@ -40,14 +40,14 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  struct thread *cur = thread_current ();
+  // struct thread *cur = thread_current ();
   // printf("%s\n", cur->name);
 
   void *p = f->esp;
   check_pointer(p);
   int sys_call_num = *(int *)p;
   // printf("==================================\n");
-  printf("%d\n", sys_call_num);
+  // printf("%d\n", sys_call_num);
   // printf("==================================\n");
 
 
@@ -96,19 +96,15 @@ syscall_handler (struct intr_frame *f)
       break;
     /* 7. Obtain a file's size. */
     case SYS_FILESIZE:
-      // check_pointer(p+4);
-      // int fd = (int)(p+4);
-      // f->eax = filesize(fd);
+      check_pointer(p+4);
+      f->eax = filesize(*(int *)(p+4));
       break;
     /* 8. Read from a file. */
     case SYS_READ:
-      // check_pointer(p+4);
-      // check_pointer(p+8);
-      // check_pointer(p+12);
-      // unsigned size = (unsigned)(p+12);
-      // void *buffer = (p+8);
-      // int fd_1 = (int)(p+4);
-      // f->eax = read(fd_1,buffer,size);
+      check_pointer(p+4);
+      check_pointer(*(char **)(p+8));
+      check_pointer(p+12);
+      f->eax = read(*(int *)(p+4),*(char **)(p+8),*(unsigned *)(p+12));
       break;
     /* 9. Write to a file. */
     case SYS_WRITE:
@@ -133,9 +129,8 @@ syscall_handler (struct intr_frame *f)
       break;
     /* 12. Close a file. */
     case SYS_CLOSE:
-      // check_pointer(p+4);
-      // int fd_5 = (int)(p+4);
-      // close(fd_5);
+      check_pointer(p+4);
+      close(*(int *)(p+4));
       break;
   }
 }
@@ -308,34 +303,33 @@ calls to close and they do not share a file position. */
 int
 open (const char *file)
 {
-  printf("====%s\n", file);
-  // File descriptor
-  int fd = -1;
-  // // Get the current thread
+  // printf("====%s\n", file);
   struct thread *cur = thread_current ();
+  struct file *nfile = filesys_open(file);
 
   // Opens the file called file
   // Add the current file's file descriptor to a list
-  if(filesys_open(file) == NULL)
+  if(nfile == NULL)
   {
-    fd = -1;
+    return -1;
   }
   else
   {
     // Add the current file's file descriptor to a list
-    fd = 2;
+    cur->files[cur->fd_count-2] = nfile;
   }
 
   // // Return file descriptor
-  return fd;
+  return cur->fd_count++;
 }
 
 /* Returns the size, in bytes, of the file open as fd. */
 int
 filesize (int fd)
 {
+  struct thread *cur = thread_current();
   //file_length returns the size of File in bytes
-  return file_length((struct file *)fd);
+  return file_length(cur->files[fd-2]);
 }
 
 /* Reads size bytes from the file open as fd into buffer.
@@ -346,11 +340,35 @@ input_getc(). */
 int
 read (int fd, void *buffer, unsigned size)
 {
-  //Not sure if this is correct? Don't feel like it is
-  if(file_read((struct file *)fd, buffer,(off_t)size))
-  return 0;
-  else
-  return -1;
+  int size_1 = size;
+  char c;
+
+  struct thread *cur = thread_current();
+  if(fd == 0)
+  {
+    // while(size_1 != 0){
+      uint8_t b = input_getc();
+      // c = (char)b;
+      // memcpy(buffer, &c, sizeof(char));
+      // ++buffer;
+      // --size_1;
+    // }
+    return b;
+  }
+
+  if(fd == 1){
+  //   uint8_t buf = input_getc();
+  //   return buf;
+    exit(-1);
+  }
+
+  if(fd > cur->fd_count || fd < 0 || cur->files[fd-2] == NULL)
+    return -1;
+   
+  int x = file_read(cur->files[fd-2], buffer,(off_t)size);
+  // printf("%d\n",x);
+  return x;
+
 }
 
 /* Writes size bytes from buffer to the open file fd.
@@ -373,10 +391,10 @@ int
 write (int fd, const void *buffer, unsigned size)
 {
 
-  struct thread *cur = thread_current ();
+  // struct thread *cur = thread_current ();
   // printf("%d\n",cur->tid);
 	
-  int x = 0;
+  // int x = 0;
 	// char *buffer_copy = palloc_get_page(0);
   // strlcpy((char *)&buffer_copy,(char *)buffer,strlen(buffer)+1);
 
@@ -430,6 +448,10 @@ calling this function for each one. */
 void
 close (int fd)
 {
+  struct thread *cur = thread_current ();
   //file_close closes the FILE
-  file_close((struct file *)fd);
+  if(fd < 2 || fd > cur->fd_count)
+      exit(-1);
+  file_close(cur->files[fd-2]);
+  cur->files[fd-2] = NULL;
 }
