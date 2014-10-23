@@ -187,6 +187,7 @@ thread_create (const char *name, int priority,
 #ifdef USERPROG
   struct thread *cur = thread_current ();
   list_push_back (&cur->child_list, &t->childelem);
+  printf("----%d\n", tid);
   t->parent_thread = cur;
 #endif
 
@@ -213,7 +214,8 @@ thread_create (const char *name, int priority,
   /* Additional attributes */
   t->exit_status = 0;
   t->fd_count = 2;
-  t->load_success = false;
+  t->load_failed = false;
+  t->called_wait = false;
   /* End of additional attributes */
 
   intr_set_level (old_level);
@@ -303,8 +305,11 @@ thread_exit (void)
 {
   struct thread *cur = thread_current();
   ASSERT (!intr_context ());
+  printf("--------%s exits\n", cur->name);
+
   sema_up(&cur->parent_thread->wait_sema);
   sema_down(&cur->wait_sema);
+
 
 #ifdef USERPROG
   process_exit ();
@@ -486,10 +491,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   sema_init(&(t->wait_sema), 0);
-
-#ifdef USERPROG
+  sema_init(&(t->load_sema), 0);
   list_init(&(t->child_list));
-#endif
 
   // intr_set_level(old_level);
   list_push_back (&all_list, &t->allelem);

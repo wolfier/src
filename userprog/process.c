@@ -34,14 +34,10 @@ process_execute (const char *file_name)
   struct thread *cur = thread_current();
   char *fn_copy;
   tid_t tid;
-  // printf("%s\n",file_name);
+
   char *copy;
   char *saved;
-
   copy = palloc_get_page (0);
-  if (copy == NULL)
-    return TID_ERROR;
-
   strlcpy(copy, file_name, strlen(file_name)+1);
   char *exe = strtok_r(copy, " ", &saved);
 
@@ -53,18 +49,19 @@ process_execute (const char *file_name)
 
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  printf("--------%s is executing\n", exe);
+
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (exe, PRI_DEFAULT, start_process, fn_copy);
 
-  sema_down(&cur->wait_sema);
+  sema_down(&cur->load_sema);
+  if(cur->load_failed)
+    return TID_ERROR;
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-
-  // printf("%d\n", cur->load_success);
-  // if(!cur->load_success){
-  //   return TID_ERROR;
-  // }
-
+  
   return tid;
 }
 
@@ -73,11 +70,9 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  struct thread *cur = thread_current();
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -85,18 +80,15 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-  
-  cur->load_success = success;
+  // cur->parent_thread->load_success = success;
+  // printf("%u\n",cur->parent_thread->load_sema.value );
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
+
   if (!success){
-    cur->tid = -1;
-
     exit(-1);
-
   }
-  sema_up(&cur->parent_thread->wait_sema);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -124,12 +116,17 @@ process_wait (tid_t child_tid)
   struct list_elem *le;
   struct thread *t = NULL;
   int ret = -1;
-  // printf("%s\n",cur->name );
+
   for(le = list_begin(&cur->child_list);
     le != list_end(&cur->child_list);
-    le=list_next(le)){
+    le = list_next(le))
+  {
     t = list_entry(le, struct thread, childelem);
-    if(t->tid == child_tid && !(t->called_wait)){  
+
+    if(t != NULL && t->tid == child_tid && !(t->called_wait))
+    {
+      printf("--------%s is waiting for %s\n", cur->name, t->name);
+
       sema_down(&cur->wait_sema);
       t->called_wait = true;
       ret = t->exit_status;
@@ -162,7 +159,6 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-    
 }
 
 /* Sets up the CPU for running user code in the current
@@ -284,6 +280,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
+      t->parent_thread->load_failed = true;
       goto done; 
     }
 
@@ -371,6 +368,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
+  sema_up(&t->parent_thread->load_sema);
   return success;
 }
 

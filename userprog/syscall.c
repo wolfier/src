@@ -53,7 +53,7 @@ syscall_handler (struct intr_frame *f)
   switch (sys_call_num){
     /* 0. Halt the operating system. */
     case SYS_HALT:
-      // halt();
+      halt();
       break;
 
     /* 1. Terminate this process. */
@@ -112,11 +112,9 @@ syscall_handler (struct intr_frame *f)
       break;
     /* 10. Change position in a file. */
     case SYS_SEEK:
-      // check_pointer(p+4);
-      // check_pointer(p+8);
-      // unsigned position = (unsigned)(p+8);
-      // int fd_3 = (int)(p+4);
-      // seek(fd_3, position);
+      check_pointer(p+4);
+      check_pointer(p+8);
+      seek(*(int *)(p+4), *(unsigned *)(p+8));
       break;
     /* 11. Report current position in a file. */
     case SYS_TELL:
@@ -183,6 +181,7 @@ pid_t
 exec (const char *cmd_line)
 {
   // printf("%s\n",cmd_line );
+
   return process_execute(cmd_line);
 }
 
@@ -389,10 +388,10 @@ int
 write (int fd, const void *buffer, unsigned size)
 {
 
-  // struct thread *cur = thread_current ();
+  struct thread *cur = thread_current ();
   // printf("%d\n",cur->tid);
 	
-  // int x = 0;
+  int x = 0;
 	// char *buffer_copy = palloc_get_page(0);
   // strlcpy((char *)&buffer_copy,(char *)buffer,strlen(buffer)+1);
 
@@ -401,14 +400,10 @@ write (int fd, const void *buffer, unsigned size)
   if(fd == 1){
     putbuf((char *)buffer, size);
   }else{
-
+    x = (int)file_write(cur->files[fd-2], buffer,(off_t)size);
   }
-  // else if(find_file(fd)!=-1){
-  //   if()
-  //     x = (int)file_write((struct file *)fd, buffer,(off_t)size);
-  // }
   // file_allow_write((struct file *)fd);
-	return size;
+	return (size > x) ? x : size ;
 }
 
 /* Changes the next byte to be read or written in open file
@@ -427,7 +422,9 @@ void
 seek (int fd, unsigned position)
 {
   //file_seek sets the current position in FILE to a new position
-  file_seek((struct file *)fd, (off_t)position);
+  struct thread *cur = thread_current ();
+
+  file_seek(cur->files[fd-2], (off_t)position);
 }
 
 /* Returns the position of the next byte to be read or written
@@ -436,8 +433,9 @@ file. */
 unsigned
 tell (int fd)
 {
+  struct thread *cur = thread_current ();
   //file_tell takes in a file and returns the current position in file
-  return file_tell((struct file *)fd);
+  return file_tell(cur->files[fd-2]);
 }
 
 /* Closes file descriptor fd. Exiting or terminating a process
