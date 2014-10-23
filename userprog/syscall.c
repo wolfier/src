@@ -15,6 +15,8 @@
 
 static void syscall_handler (struct intr_frame *);
 
+
+//declaration of everything
 void check_pointer(void *addr); 
 void halt (void);
 void close (int fd);
@@ -39,17 +41,15 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  // struct thread *cur = thread_current ();
-  // printf("%s\n", cur->name);
-
+  //grab stack pointer
   void *p = f->esp;
+  //check if is a valid pointer
   check_pointer(p);
+  //grab the call number
   int sys_call_num = *(int *)p;
-  // printf("=========\n");
-  // printf("%d\n", sys_call_num);
-  // printf("==================================\n");
 
-
+  //p+4 is the first thing on the stack, p+8 is the second, p+12 is the third one
+  //function returns are stored in eax 
   switch (sys_call_num){
     /* 0. Halt the operating system. */
     case SYS_HALT:
@@ -135,7 +135,7 @@ void
 check_pointer(void *addr){
   struct thread *cur = thread_current ();
   uint32_t *pd = cur->pagedir;
-
+  //if the given pointer is a kernel virtual address, or it is invalid the process exits
     if(is_kernel_vaddr(addr) ||
       pagedir_get_page(pd, addr) == NULL ||
       addr == NULL){
@@ -159,9 +159,9 @@ to the kernel. If the process's parent waits for it
 Conventionally, a status of 0 indicates success and
 nonzero values indicate errors. */
 void
-exit (int status)
-{
+exit (int status){
   struct thread *cur = thread_current ();
+  //this was the parent can grab it's child's status
   cur->exit_status = status;
   cur->exiting = true;
   printf("%s: exit(%d)\n",cur->name,status);
@@ -177,10 +177,7 @@ from the exec until it knows whether the child process
 successfully loaded its executable. You must use appropriate
 synchronization to ensure this. */
 pid_t
-exec (const char *cmd_line)
-{
-  // printf("%s\n",cmd_line );
-
+exec (const char *cmd_line){
   return process_execute(cmd_line);
 }
 
@@ -192,55 +189,13 @@ If pid is still alive, waits until it terminates.
 Then, returns the status that pid passed to exit.
 If pid did not call exit(), but was terminated by
 the kernel (e.g. killed due to an exception),
-wait(pid) must return -1. It is perfectly legal
-for a parent process to wait for child processes
-that have already terminated by the time the parent
-calls wait, but the kernel must still allow the
-parent to retrieve its child's exit status or
-learn that the child was terminated by the kernel.
-
-wait must fail and return -1 immediately if any of
-the following conditions are true:
-
-pid does not refer to a direct child of the calling
-process.pid is a direct child of the calling process
-if and only if the calling process received pid as
-a return value from a successful call to exec.
-
-Note that children are not inherited:
-if A spawns child B and B spawns child process C,
-then A cannot wait for C, even if B is dead.
-A call to wait(C) by process A must fail. Similarly,
-orphaned processes are not assigned to a new parent
-if their parent process exits before they do.
-
-The process that calls wait has already called wait
-on pid. That is, a process may wait for any given
-child at most once.
-
-Processes may spawn any number of children, wait for
-them in any order, and may even exit without having
-waited for some or all of their children. Your
-design should consider all the ways in which waits can
-occur. All of a process's resources, including its struct
-thread, must be freed whether its parent ever waits for
-it or not, and regardless of whether the child exits
-before or after its parent.
-
-You must ensure that Pintos does not terminate until the
-initial process exits. The supplied Pintos code tries to
-do this by calling process_wait() (in "userprog/process.c")
-from main() (in "threads/init.c"). We suggest that you
-implement process_wait() according to the comment at the
-top of the function and then implement the wait system call
-in terms of process_wait().
-
-Implementing this system call requires
-considerably more work than any of the rest. */
+wait(pid) must return -1. wait must also fail and 
+return -1 immediately if pid does not refer to a 
+direct child of the calling process.
+*/
 int
 wait (pid_t pid)
 {
-  // printf("%s\n",thread_current()->name );
   return process_wait(pid);
 }
 
@@ -263,17 +218,6 @@ an Open File, for details. */
 bool
 remove (const char *file)
 {
-  /*
-  have to go through each process to see what is still accessing
-  the file/file descriptor and wait for the process to finish.
-  */
-  //Only the last part
-
-  /*
-  if(look through process list(has file descriptor))
-  wait for it to terminate
-  then return filesys_remove(file);
-  */
   return filesys_remove(file);
 }
 
@@ -283,23 +227,10 @@ if the file could not be opened.
 
 File descriptors numbered 0 and 1 are reserved for the
 console: fd 0 (STDIN_FILENO) is standard input,
-fd 1 (STDOUT_FILENO) is standard output. The open system
-call will never return either of these file descriptors,
-which are valid as system call arguments only as
-explicitly described below.
-
-Each process has an independent set of file descriptors.
-File descriptors are not inherited by child processes.
-
-When a single file is opened more than once, whether by
-a single process or different processes, each open
-returns a new file descriptor. Different file descriptors
-for a single file are closed independently in separate
-calls to close and they do not share a file position. */
+fd 1 (STDOUT_FILENO) is standard output. */
 int
 open (const char *file)
 {
-  // printf("====%s\n", file);
   struct thread *cur = thread_current ();
   struct file *nfile = filesys_open(file);
 
@@ -338,31 +269,22 @@ read (int fd, void *buffer, unsigned size)
 {
   int size_1 = size;
   char c;
-
+  // printf("%s\n","_____________" );
   struct thread *cur = thread_current();
-  if(fd == 0)
-  {
-    // while(size_1 != 0){
+  //keyboard input
+  if(fd == 0){
       uint8_t b = input_getc();
-      // c = (char)b;
-      // memcpy(buffer, &c, sizeof(char));
-      // ++buffer;
-      // --size_1;
-    // }
     return b;
   }
-
+  //standard output
   if(fd == 1){
-  //   uint8_t buf = input_getc();
-  //   return buf;
     exit(-1);
   }
-
+  //if it isn't in the fd bounds, it fails
   if(fd > cur->fd_count || fd < 0 || cur->files[fd-2] == NULL)
     return -1;
-   
+  //it can begin reading
   int x = file_read(cur->files[fd-2], buffer,(off_t)size);
-  // printf("%d\n",x);
   return x;
 
 }
@@ -374,34 +296,25 @@ Writing past end-of-file would normally extend the
 file, but file growth is not implemented by the basic
 file system. The expected behavior is to write as many
 bytes as possible up to end-of-file and return the actual
-number written, or 0 if no bytes could be written at all.
-
-fd 1 writes to the console. Your code to write to the
-console should write all of buffer in one call to putbuf(),
-at least as long as size is not bigger than a few
-hundred bytes. (It is reasonable to break up larger
-buffers.) Otherwise, lines of text output by different
-processes may end up interleaved on the console, confusing
-both human readers and our grading scripts. */
+number written, or 0 if no bytes could be written at all.*/
 int
 write (int fd, const void *buffer, unsigned size)
 {
   struct thread *cur = thread_current ();
 	
   int x = 0;
-
+  //fd 1 writes to the console 
   if(fd == 1){
     putbuf((char *)buffer, size);
   }
-  else if(fd == 0 || fd >= cur->fd_count)
-  {
+  //if it isn't a valid fd
+  else if(fd == 0 || fd >= cur->fd_count){
     exit(-1);
   }
-  else
-  {
+  //let it write
+  else{
     x = file_write(cur->files[fd-2],buffer,(off_t)size);
   }
-  // file_allow_write((struct file *)fd);
 	return (size > x) ? x : size ;
 }
 
@@ -412,17 +325,13 @@ the file. (Thus, a position of 0 is the file's start.)
 A seek past the current end of a file is not an error.
 A later read obtains 0 bytes, indicating end of file.
 A later write extends the file, filling any unwritten
-gap with zeros. (However, in Pintos, files will have a
-fixed length until project 4 is complete, so writes past
-end of file will return an error.) These semantics are
-implemented in the file system and do not require any
-special effort in system call implementation. */
+gap with zeros. These semantics are implemented in the
+file system and did not require any special effort in
+system call implementation. */
 void
 seek (int fd, unsigned position)
 {
-  //file_seek sets the current position in FILE to a new position
   struct thread *cur = thread_current ();
-
   file_seek(cur->files[fd-2], (off_t)position);
 }
 
@@ -444,7 +353,6 @@ void
 close (int fd)
 {
   struct thread *cur = thread_current ();
-  //file_close closes the FILE
   if(fd < 2 || fd >= cur->fd_count)
       exit(-1);
   file_close(cur->files[fd-2]);

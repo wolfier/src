@@ -185,13 +185,13 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
-
+//added for project 2
 #ifdef USERPROG
   struct thread *cur = thread_current ();
   list_push_back (&cur->child_list, &t->childelem);
-  // printf("----%d\n", tid);
   t->parent_thread = cur;
 #endif
+//end addition
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -310,7 +310,7 @@ thread_exit (void)
   struct thread *cur = thread_current();
   ASSERT (!intr_context ());
 
-
+  //delete the children! :D
   if(list_size(&cur->child_list) > 0){
     for(le = list_begin(&cur->child_list);
       le != list_end(&cur->child_list);
@@ -330,19 +330,12 @@ thread_exit (void)
       }
     }
   }
+  //tell its parent to go
   sema_up(&cur->parent_thread->wait_sema);
-  // printf("%s sema value is %u\n", cur->name, cur->exit_sema.value);
-  // for(le = list_begin(&all_list);
-      // le != list_end(&all_list);
-      // le = list_next(le))
-    // {
-      // t = list_entry(le, struct thread, allelem); 
-      // printf("%s------%d\n",t->name, t->status);
-    // }
+  //close the file it is using
   file_close(cur->executable);
+  //there is no crying in pintos, but there is suicide
   sema_down(&cur->exit_sema);
-  // printf("%s exits\n", cur->name);
-
 
 #ifdef USERPROG
   process_exit ();

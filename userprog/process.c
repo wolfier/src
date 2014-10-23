@@ -49,12 +49,10 @@ process_execute (const char *file_name)
 
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  // printf("%s is executing\n", exe);
-
-
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (exe, PRI_DEFAULT, start_process, fn_copy);
 
+  //make sure current thread is finsihed loading
   sema_down(&cur->load_sema);
   if(cur->load_failed)
     return TID_ERROR;
@@ -105,10 +103,7 @@ start_process (void *file_name_)
    exception), returns -1.  If TID is invalid or if it was not a
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
-   immediately, without waiting.
-
-   This function will be implemented in problem 2-2.  For now, it
-   does nothing. */
+   immediately, without waiting.*/
 int
 process_wait (tid_t child_tid) 
 {
@@ -116,20 +111,19 @@ process_wait (tid_t child_tid)
   struct list_elem *le;
   struct thread *t = NULL;
   int ret = -1;
-  // printf("%s --- %d\n",cur->name,list_size(&cur->child_list));
+  //loop through the thread's children inorder to wait
   for(le = list_begin(&cur->child_list);
     le != list_end(&cur->child_list);
     le = list_next(le))
   {
     t = list_entry(le, struct thread, childelem);
-    // printf("%s\n",t->name );
-    if(t != NULL && t->tid == child_tid && !(t->called_wait))
-    {
-      // printf("--------%s is waiting for %s\n", cur->name, t->name);
-
+    if(t != NULL && t->tid == child_tid && !(t->called_wait)){
+      //wait on child
       sema_down(&cur->wait_sema);
       t->called_wait = true;
+      //get child's exit status
       ret = t->exit_status;
+      //child may exit
       sema_up(&t->exit_sema);
     }
   }
@@ -142,6 +136,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  //remove the child from its parent's children list
   list_remove(&cur->childelem);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -261,8 +256,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-  // if(strcmp("multi-oom",file_name) == 0)
-  //   exit(-1);
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -364,7 +357,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
   t->executable = file;
   success = true;
+  //no longer allow other files to modify it
   file_deny_write(file);
+  //tell the parent the child is ready
   sema_up(&t->parent_thread->load_sema);
   return success;
 
@@ -503,7 +498,6 @@ setup_stack (void **esp, const char *cmd_line)
       else
         palloc_free_page (kpage);
     }
-  // hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
   return success;
 }
 
