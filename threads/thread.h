@@ -113,6 +113,7 @@ struct thread
     int fd_count;                       /* File count */
     bool called_wait;                   /* Wait status */
     bool load_failed;                   /* load status */
+    struct file *executable;
 #endif
 
     /* Owned by thread.c. */
