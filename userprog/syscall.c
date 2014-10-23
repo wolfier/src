@@ -45,7 +45,7 @@ syscall_handler (struct intr_frame *f)
   void *p = f->esp;
   check_pointer(p);
   int sys_call_num = *(int *)p;
-  // printf("==================================\n");
+  // printf("=========\n");
   // printf("%d\n", sys_call_num);
   // printf("==================================\n");
 
@@ -82,9 +82,8 @@ syscall_handler (struct intr_frame *f)
       break;
     /* 5. Delete a file. */
     case SYS_REMOVE:
-      // check_pointer(p+4);
-      // char *file_1 = (char *)(p+4);
-      // f->eax = remove(file_1);
+      check_pointer(*(char **)(p+4));
+      f->eax = remove(*(char **)(p+4));
       break;
     /* 6. Open a file. */
     case SYS_OPEN:
@@ -165,6 +164,7 @@ exit (int status)
 {
   struct thread *cur = thread_current ();
   cur->exit_status = status;
+  cur->exiting = true;
   printf("%s: exit(%d)\n",cur->name,status);
   thread_exit();
 }
@@ -387,20 +387,20 @@ both human readers and our grading scripts. */
 int
 write (int fd, const void *buffer, unsigned size)
 {
-
   struct thread *cur = thread_current ();
-  // printf("%d\n",cur->tid);
 	
   int x = 0;
-	// char *buffer_copy = palloc_get_page(0);
-  // strlcpy((char *)&buffer_copy,(char *)buffer,strlen(buffer)+1);
-
-  // printf("%d\n", fd);
 
   if(fd == 1){
     putbuf((char *)buffer, size);
-  }else{
-    x = (int)file_write(cur->files[fd-2], buffer,(off_t)size);
+  }
+  else if(fd == 0 || fd >= cur->fd_count)
+  {
+    exit(-1);
+  }
+  else
+  {
+    x = file_write(cur->files[fd-2],buffer,(off_t)size);
   }
   // file_allow_write((struct file *)fd);
 	return (size > x) ? x : size ;
@@ -446,7 +446,7 @@ close (int fd)
 {
   struct thread *cur = thread_current ();
   //file_close closes the FILE
-  if(fd < 2 || fd > cur->fd_count)
+  if(fd < 2 || fd >= cur->fd_count)
       exit(-1);
   file_close(cur->files[fd-2]);
   cur->files[fd-2] = NULL;

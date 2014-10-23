@@ -101,7 +101,8 @@ struct thread
 
     struct semaphore wait_sema;         /* Wait status */
     struct semaphore load_sema;         /* Load status */
-    // struct semaphore failed_load_sema;
+    struct semaphore exit_sema;
+    bool exiting;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -111,8 +112,7 @@ struct thread
     struct file *files[128];            /* File list */
     int fd_count;                       /* File count */
     bool called_wait;                   /* Wait status */
-    bool load_failed;                     /* load status */
-    
+    bool load_failed;                   /* load status */
 #endif
 
     /* Owned by thread.c. */

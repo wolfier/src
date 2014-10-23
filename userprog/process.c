@@ -125,12 +125,12 @@ process_wait (tid_t child_tid)
 
     if(t != NULL && t->tid == child_tid && !(t->called_wait))
     {
-      // printf("--------%s is waiting for %s\n", cur->name, t->name);
+      printf("--------%s is waiting for %s\n", cur->name, t->name);
 
       sema_down(&cur->wait_sema);
       t->called_wait = true;
       ret = t->exit_status;
-      sema_up(&t->wait_sema);
+      sema_up(&t->exit_sema);
     }
   }
   return ret;

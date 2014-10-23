@@ -303,12 +303,32 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
+  struct list_elem *le;
+  struct thread *t = NULL;
   struct thread *cur = thread_current();
   ASSERT (!intr_context ());
-  // printf("%s exits\n", cur->name);
 
-  sema_up(&cur->parent_thread->wait_sema);
-  sema_down(&cur->wait_sema);
+  printf("%s exits\n", cur->name);
+  
+  if(list_size(&cur->child_list) > 0){
+    for(le = list_begin(&cur->child_list);
+      le != list_end(&cur->child_list);
+      le = list_next(le))
+    {
+      t = list_entry(le, struct thread, childelem);
+
+      if(t != NULL && t->exiting)
+      {
+        sema_up(&t->exit_sema);
+      }
+      else{
+        t->parent_thread = NULL;
+        sema_up(&t->exit_sema);
+      }
+    }
+  }
+    sema_up(&cur->parent_thread->wait_sema);
+    sema_down(&cur->exit_sema);
 
 
 #ifdef USERPROG
@@ -492,6 +512,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   sema_init(&(t->wait_sema), 0);
   sema_init(&(t->load_sema), 0);
+  sema_init(&(t->exit_sema), 0);
   list_init(&(t->child_list));
 
   // intr_set_level(old_level);
