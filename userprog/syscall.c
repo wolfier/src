@@ -117,9 +117,8 @@ syscall_handler (struct intr_frame *f)
       break;
     /* 11. Report current position in a file. */
     case SYS_TELL:
-      // check_pointer(p+4);
-      // int fd_4 = (int)(p+4);
-      // f->eax = tell(fd_4);
+      check_pointer(p+4);
+      f->eax = tell(*(int *)(p+4));
       break;
     /* 12. Close a file. */
     case SYS_CLOSE:

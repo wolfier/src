@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "filesys/file.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -184,6 +185,7 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+
 #ifdef USERPROG
   struct thread *cur = thread_current ();
   list_push_back (&cur->child_list, &t->childelem);
@@ -308,8 +310,7 @@ thread_exit (void)
   struct thread *cur = thread_current();
   ASSERT (!intr_context ());
 
-  // printf("%s exits\n", cur->name);
-  
+
   if(list_size(&cur->child_list) > 0){
     for(le = list_begin(&cur->child_list);
       le != list_end(&cur->child_list);
@@ -319,16 +320,28 @@ thread_exit (void)
 
       if(t != NULL && t->exiting)
       {
+        list_remove(&t->childelem);
         sema_up(&t->exit_sema);
       }
       else{
+        list_remove(&t->childelem);
         t->parent_thread = NULL;
         sema_up(&t->exit_sema);
       }
     }
   }
-    sema_up(&cur->parent_thread->wait_sema);
-    sema_down(&cur->exit_sema);
+  sema_up(&cur->parent_thread->wait_sema);
+  // printf("%s sema value is %u\n", cur->name, cur->exit_sema.value);
+  // for(le = list_begin(&all_list);
+      // le != list_end(&all_list);
+      // le = list_next(le))
+    // {
+      // t = list_entry(le, struct thread, allelem); 
+      // printf("%s------%d\n",t->name, t->status);
+    // }
+  file_close(cur->executable);
+  sema_down(&cur->exit_sema);
+  // printf("%s exits\n", cur->name);
 
 
 #ifdef USERPROG

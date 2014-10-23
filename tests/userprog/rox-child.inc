@@ -11,7 +11,6 @@ test_main (void)
   int handle;
   pid_t child;
   char buffer[16];
-
   /* Open child-rox, read from it, write back same data. */
   CHECK ((handle = open ("child-rox")) > 1, "open \"child-rox\"");
   CHECK (read (handle, buffer, sizeof buffer) == (int) sizeof buffer,
@@ -23,6 +22,7 @@ test_main (void)
   /* Execute child-rox and wait for it. */
   CHECK ((child = exec (child_cmd)) != -1, "exec \"%s\"", child_cmd);
   quiet = true;
+
   CHECK (wait (child) == 12, "wait for child");
   quiet = false;
 

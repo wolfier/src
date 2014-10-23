@@ -116,13 +116,13 @@ process_wait (tid_t child_tid)
   struct list_elem *le;
   struct thread *t = NULL;
   int ret = -1;
-
+  // printf("%s --- %d\n",cur->name,list_size(&cur->child_list));
   for(le = list_begin(&cur->child_list);
     le != list_end(&cur->child_list);
     le = list_next(le))
   {
     t = list_entry(le, struct thread, childelem);
-
+    // printf("%s\n",t->name );
     if(t != NULL && t->tid == child_tid && !(t->called_wait))
     {
       // printf("--------%s is waiting for %s\n", cur->name, t->name);
@@ -362,8 +362,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-  // t->executable = file;
+  t->executable = file;
   success = true;
+  file_deny_write(file);
+  sema_up(&t->parent_thread->load_sema);
+  return success;
 
  done:
   /* We arrive here whether the load is successful or not. */
