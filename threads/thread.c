@@ -308,7 +308,7 @@ thread_exit (void)
   struct thread *cur = thread_current();
   ASSERT (!intr_context ());
 
-  printf("%s exits\n", cur->name);
+  // printf("%s exits\n", cur->name);
   
   if(list_size(&cur->child_list) > 0){
     for(le = list_begin(&cur->child_list);

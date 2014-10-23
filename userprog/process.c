@@ -125,7 +125,7 @@ process_wait (tid_t child_tid)
 
     if(t != NULL && t->tid == child_tid && !(t->called_wait))
     {
-      printf("--------%s is waiting for %s\n", cur->name, t->name);
+      // printf("--------%s is waiting for %s\n", cur->name, t->name);
 
       sema_down(&cur->wait_sema);
       t->called_wait = true;
@@ -362,7 +362,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-  cur->executable = file;
+  // t->executable = file;
   success = true;
 
  done:
