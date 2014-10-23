@@ -187,7 +187,7 @@ thread_create (const char *name, int priority,
 #ifdef USERPROG
   struct thread *cur = thread_current ();
   list_push_back (&cur->child_list, &t->childelem);
-  printf("----%d\n", tid);
+  // printf("----%d\n", tid);
   t->parent_thread = cur;
 #endif
 
@@ -305,7 +305,7 @@ thread_exit (void)
 {
   struct thread *cur = thread_current();
   ASSERT (!intr_context ());
-  printf("--------%s exits\n", cur->name);
+  // printf("%s exits\n", cur->name);
 
   sema_up(&cur->parent_thread->wait_sema);
   sema_down(&cur->wait_sema);

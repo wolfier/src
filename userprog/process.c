@@ -49,7 +49,7 @@ process_execute (const char *file_name)
 
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  printf("--------%s is executing\n", exe);
+  // printf("%s is executing\n", exe);
 
 
   /* Create a new thread to execute FILE_NAME. */
@@ -125,7 +125,7 @@ process_wait (tid_t child_tid)
 
     if(t != NULL && t->tid == child_tid && !(t->called_wait))
     {
-      printf("--------%s is waiting for %s\n", cur->name, t->name);
+      // printf("--------%s is waiting for %s\n", cur->name, t->name);
 
       sema_down(&cur->wait_sema);
       t->called_wait = true;
