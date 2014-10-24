@@ -31,11 +31,13 @@ bool remove (const char *file);
 int wait (pid_t pid);
 pid_t exec (const char *cmd_line);
 
+struct semaphore syscall_sema;
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  sema_init (&syscall_sema,1);
 }
 
 static void
@@ -161,7 +163,7 @@ nonzero values indicate errors. */
 void
 exit (int status){
   struct thread *cur = thread_current ();
-  //this was the parent can grab it's child's status
+  //this is so the parent can grab its child's status
   cur->exit_status = status;
   cur->exiting = true;
   printf("%s: exit(%d)\n",cur->name,status);
@@ -178,7 +180,10 @@ successfully loaded its executable. You must use appropriate
 synchronization to ensure this. */
 pid_t
 exec (const char *cmd_line){
-  return process_execute(cmd_line);
+  // sema_down (&syscall_sema);
+  int exec_pid = process_execute(cmd_line);
+  // sema_up (&syscall_sema);
+  return exec_pid;
 }
 
 
@@ -207,7 +212,10 @@ would require a open system call. */
 bool
 create (const char *file, unsigned initial_size)
 {
-  return filesys_create(file,(off_t)initial_size);
+  sema_down (&syscall_sema);
+  bool create_bool = filesys_create(file,(off_t)initial_size);
+  sema_up (&syscall_sema);
+  return create_bool;
 }
 
 /* Deletes the file called file. Returns true if
@@ -218,7 +226,10 @@ an Open File, for details. */
 bool
 remove (const char *file)
 {
-  return filesys_remove(file);
+  sema_down (&syscall_sema);
+  bool remove_bool = filesys_remove(file);
+  sema_up (&syscall_sema);
+  return remove_bool;
 }
 
 /* Opens the file called file. Returns a nonnegative
@@ -231,32 +242,38 @@ fd 1 (STDOUT_FILENO) is standard output. */
 int
 open (const char *file)
 {
+  sema_down (&syscall_sema);
   struct thread *cur = thread_current ();
   struct file *nfile = filesys_open(file);
 
   // Opens the file called file
-  // Add the current file's file descriptor to a list
   if(nfile == NULL)
   {
+    sema_up (&syscall_sema);
     return -1;
   }
   else
   {
-    // Add the current file's file descriptor to a list
+    // Set struct file pointer to files array
     cur->files[cur->fd_count-2] = nfile;
   }
 
-  // // Return file descriptor
-  return cur->fd_count++;
+  // Return file descriptor
+  int open_fd = cur->fd_count++;
+  sema_up (&syscall_sema);
+  return open_fd;
 }
 
 /* Returns the size, in bytes, of the file open as fd. */
 int
 filesize (int fd)
 {
+  sema_down (&syscall_sema);
   struct thread *cur = thread_current();
   //file_length returns the size of File in bytes
-  return file_length(cur->files[fd-2]);
+  int file_size = file_length(cur->files[fd-2]);
+  sema_up (&syscall_sema);
+  return file_size;
 }
 
 /* Reads size bytes from the file open as fd into buffer.
@@ -267,6 +284,7 @@ input_getc(). */
 int
 read (int fd, void *buffer, unsigned size)
 {
+  sema_down (&syscall_sema);
   int size_1 = size;
   char c;
   // printf("%s\n","_____________" );
@@ -274,17 +292,22 @@ read (int fd, void *buffer, unsigned size)
   //keyboard input
   if(fd == 0){
       uint8_t b = input_getc();
+    sema_up (&syscall_sema);
     return b;
   }
   //standard output
   if(fd == 1){
+    sema_up (&syscall_sema);
     exit(-1);
   }
   //if it isn't in the fd bounds, it fails
-  if(fd > cur->fd_count || fd < 0 || cur->files[fd-2] == NULL)
+  if(fd > cur->fd_count || fd < 0 || cur->files[fd-2] == NULL){
+    sema_up (&syscall_sema);
     return -1;
+  }
   //it can begin reading
   int x = file_read(cur->files[fd-2], buffer,(off_t)size);
+  sema_up (&syscall_sema);
   return x;
 
 }
@@ -300,6 +323,7 @@ number written, or 0 if no bytes could be written at all.*/
 int
 write (int fd, const void *buffer, unsigned size)
 {
+  sema_down (&syscall_sema);
   struct thread *cur = thread_current ();
 	
   int x = 0;
@@ -309,13 +333,16 @@ write (int fd, const void *buffer, unsigned size)
   }
   //if it isn't a valid fd
   else if(fd == 0 || fd >= cur->fd_count){
+    sema_up (&syscall_sema);
     exit(-1);
   }
   //let it write
   else{
     x = file_write(cur->files[fd-2],buffer,(off_t)size);
   }
-	return (size > x) ? x : size ;
+	int write_size = (size > x) ? x : size ;
+  sema_up (&syscall_sema);
+  return write_size;
 }
 
 /* Changes the next byte to be read or written in open file
@@ -331,8 +358,10 @@ system call implementation. */
 void
 seek (int fd, unsigned position)
 {
+  sema_down (&syscall_sema);
   struct thread *cur = thread_current ();
   file_seek(cur->files[fd-2], (off_t)position);
+  sema_up (&syscall_sema);
 }
 
 /* Returns the position of the next byte to be read or written
@@ -341,9 +370,12 @@ file. */
 unsigned
 tell (int fd)
 {
+  sema_down (&syscall_sema);
   struct thread *cur = thread_current ();
   //file_tell takes in a file and returns the current position in file
-  return file_tell(cur->files[fd-2]);
+  unsigned tell_size = file_tell(cur->files[fd-2]);
+  sema_up (&syscall_sema);
+  return tell_size;
 }
 
 /* Closes file descriptor fd. Exiting or terminating a process
@@ -352,9 +384,13 @@ calling this function for each one. */
 void
 close (int fd)
 {
+  sema_down (&syscall_sema);
   struct thread *cur = thread_current ();
-  if(fd < 2 || fd >= cur->fd_count)
+  if(fd < 2 || fd >= cur->fd_count){
+      sema_up (&syscall_sema);
       exit(-1);
+  }
   file_close(cur->files[fd-2]);
   cur->files[fd-2] = NULL;
+  sema_up (&syscall_sema);
 }
