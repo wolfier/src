@@ -20,6 +20,7 @@
 #include "threads/synch.h"
 #include "lib/string.h"
 #include "userprog/syscall.h"
+#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -29,8 +30,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name) 
-{
+process_execute (const char *file_name) {
   struct thread *cur = thread_current();
   char *fn_copy;
   tid_t tid;

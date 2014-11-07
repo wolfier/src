@@ -6,6 +6,7 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
+#include "lib/kernel/hash.h"
 
 static struct hash frames;
 static struct lock frame_lock;
@@ -43,9 +44,15 @@ frame_init (){
 
 /*
 Allocates a new page then adds to frame table
+
+We were keeping a copy of the current page that the new page is created
+from, but we decided on 11-7 that this was unnecessary and deleted this
+to make progress elsewhere. May be a good idea, but who knows. Zach gets 
+all credit/blame for thinking of storing it. Austin gets all credit/blame 
+for deciding to delete it. 
 */
-void *
-frame_get (void * uvaddr, bool zero, struct <think of name> *origin){
+hash_elem
+frame_get (bool zero){
 	void * kpage = palloc_get_page ( PAL_USER | (zero ? PAL_ZERO : 0) );
 	struct thread * t = thread_current ();
 
@@ -60,9 +67,7 @@ frame_get (void * uvaddr, bool zero, struct <think of name> *origin){
 	/* There is room, lets fill it */
 	if(kpage != NULL){
 		struct frame * frame = (struct frame*) malloc (sizeof (struct frame));
-		frame -> addr = kpage;
-		frame -> uvaddr = uvaddr;
-		frame -> origin = origin;
+		frame -> page = kpage;
 		frame -> thread = t;
 		frame -> pinned = false;
 
@@ -71,24 +76,23 @@ frame_get (void * uvaddr, bool zero, struct <think of name> *origin){
 		unlock_frame ();
 	}
 
-	return kpage;
+	return frame->hash_elem;
 }
 
 /*
 Get rid of the frame and all of its stuff
 */
 bool
-frame_free (void * addr){
+frame_free (uint32_t addr){
 	struct frame * frame;
 	struct hash_elem * found_this_frame;
 	struct frame frame_elem;
-	frame_elem.addr = addr;
 
 	found_this_frame = hash_find (&frames, &frame_elem.hash_elem);
 	if(found_this_frame != NULL){
 		frame = hash_entry (found_this_frame, struct frame, hash_elem);
 
-		palloc_free_page (frame->addr); //Free physical memory
+		palloc_free_page (&frame->page); //Free physical memory
 		hash_delete (&frames, &frame->hash_elem); //Free entry in the frame table
 		free (frame); //Delete the structure
 
@@ -102,13 +106,13 @@ frame_free (void * addr){
 look for a frame with this address, if it isn't found return NULL
 */
 struct frame *
-frame_find (void * addr){
+frame_find (uint32_t addr){
 	struct frame * frame;
 	struct hash_elem * found_frame;
 	struct frame frame_elem;
-	frame_elem.addr = addr;
-
-	found_frame = hash_find (&frames, &frame_elem.hash_elem);
+	unsigned find_me = hash_int(addr);
+	//Assumption: Return of hash_find is the hash of the i'th element in the hash table
+	found_frame = hash_find (&frames, find_me);
 	if(found_frame != NULL){
 		frame = hash_entry (found_frame, struct frame, hash_elem);
 		return frame;
