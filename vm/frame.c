@@ -83,7 +83,7 @@ frame_get (bool zero){
 Get rid of the frame and all of its stuff
 */
 bool
-frame_free (uint32_t addr){
+frame_free (hash_elem kill){
 	struct frame * frame;
 	struct hash_elem * found_this_frame;
 	struct frame frame_elem;
@@ -106,11 +106,10 @@ frame_free (uint32_t addr){
 look for a frame with this address, if it isn't found return NULL
 */
 struct frame *
-frame_find (uint32_t addr){
+frame_find (hash_elem find_me){
 	struct frame * frame;
 	struct hash_elem * found_frame;
 	struct frame frame_elem;
-	unsigned find_me = hash_int(addr);
 	//Assumption: Return of hash_find is the hash of the i'th element in the hash table
 	found_frame = hash_find (&frames, find_me);
 	if(found_frame != NULL){

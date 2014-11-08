@@ -21,6 +21,7 @@
 #include "lib/string.h"
 #include "userprog/syscall.h"
 #include "vm/frame.h"
+#include "lib/kernel/hash.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -451,22 +452,30 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      struct hash_elem kpage_hashed = frame_get(0);
+      uint8_t *kpage = kpage_hashed->page;
+      // uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
         return false;
 
       /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      // Modified 
+      if (file_read (file, frame_find(kpage*)->page, page_read_bytes) != (int) page_read_bytes)
         {
-          palloc_free_page (kpage);
+          // Modified
+          // palloc_free_page (kpage);
+          frame_free(kpage_hashed);
           return false; 
         }
+      // Modified
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable)) 
         {
-          palloc_free_page (kpage);
+          // Modified
+          // palloc_free_page (kpage);
+          frame_free(kpage_hashed);
           return false; 
         }
 
@@ -486,8 +495,10 @@ setup_stack (void **esp, const char *cmd_line)
 
   uint8_t *kpage;
   bool success = false;
-
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  // Modified
+  // kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  struct hash_elem kpage_hashed = frame_get(true);
+  kpage = frame_find(kpage_hashed);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -496,7 +507,9 @@ setup_stack (void **esp, const char *cmd_line)
         load_stack(esp, cmd_line);
       }
       else
-        palloc_free_page (kpage);
+        // Modified
+        frame_free(kpage_hashed);
+        // palloc_free_page (kpage);
     }
   return success;
 }
