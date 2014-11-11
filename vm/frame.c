@@ -51,11 +51,11 @@ to make progress elsewhere. May be a good idea, but who knows. Zach gets
 all credit/blame for thinking of storing it. Austin gets all credit/blame 
 for deciding to delete it. 
 */
-hash_elem
+struct hash_elem
 frame_get (bool zero){
 	void * kpage = palloc_get_page ( PAL_USER | (zero ? PAL_ZERO : 0) );
 	struct thread * t = thread_current ();
-
+	struct frame *frame;
 	/* no free mem, lets get some */
 	if(kpage == NULL) {
 		lock_frame ();
@@ -66,7 +66,7 @@ frame_get (bool zero){
 
 	/* There is room, lets fill it */
 	if(kpage != NULL){
-		struct frame * frame = (struct frame*) malloc (sizeof (struct frame));
+		frame = (struct frame*) malloc (sizeof (struct frame));
 		frame -> page = kpage;
 		frame -> thread = t;
 		frame -> pinned = false;
@@ -83,12 +83,11 @@ frame_get (bool zero){
 Get rid of the frame and all of its stuff
 */
 bool
-frame_free (hash_elem kill){
+frame_free (struct hash_elem kill){
 	struct frame * frame;
 	struct hash_elem * found_this_frame;
-	struct frame frame_elem;
 
-	found_this_frame = hash_find (&frames, &frame_elem.hash_elem);
+	found_this_frame = hash_find (&frames, kill);
 	if(found_this_frame != NULL){
 		frame = hash_entry (found_this_frame, struct frame, hash_elem);
 
@@ -106,12 +105,11 @@ frame_free (hash_elem kill){
 look for a frame with this address, if it isn't found return NULL
 */
 struct frame *
-frame_find (hash_elem find_me){
+frame_find (struct hash_elem *find_me){
 	struct frame * frame;
-	struct hash_elem * found_frame;
-	struct frame frame_elem;
+	struct hash_elem * found_frame = NULL;
 	//Assumption: Return of hash_find is the hash of the i'th element in the hash table
-	found_frame = hash_find (&frames, find_me);
+	found_frame = hash_find (&frames, *find_me);
 	if(found_frame != NULL){
 		frame = hash_entry (found_frame, struct frame, hash_elem);
 		return frame;
@@ -120,15 +118,17 @@ frame_find (hash_elem find_me){
 	}
 }
 
+
 /*
 Comparision function, returns if A is less than B
-*/
+
 bool
 frame_less (const struct hash_elem *a_, const struct hash_elem *b_	, void *aux UNUSED){
 	const struct frame * a = hash_entry (a_, struct frame, hash_elem);
 	const struct frame * b = hash_entry (b_, struct frame, hash_elem);
 	return a->addr < b->addr;
 }
+*/
 
 /*
 Can't use a hash table without a hash function
@@ -136,5 +136,5 @@ Can't use a hash table without a hash function
 unsigned
 frame_hash(const struct hash_elem *hash_this, void *aux UNUSED){
 	const struct frame * frame = hash_entry (hash_this, struct frame, hash_elem);
-	return hash_int ((unsigned)frame->addr);
+	return hash_int ((unsigned)frame->frame_number);
 }
