@@ -452,22 +452,19 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      struct hash_elem kpage_hashed;
-      struct hash_elem *kpage_hashed_pointer;
-      kpage_hashed = frame_get (0);
-      kpage_hashed_pointer = *(kpage_hashed);
-      uint8_t *kpage = frame_find (kpage_hashed_pointer)->page;
-      // uint8_t *kpage = palloc_get_page (PAL_USER);
+      
+      struct frame *usable_frame = frame_get ();
+      uint8_t *kpage = &usable_frame->page;
       if (kpage == NULL)
         return false;
-
+      usable_frame->page = kpage;
       /* Load this page. */
       // Modified 
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           // Modified
           // palloc_free_page (kpage);
-          frame_free (kpage_hashed);
+          frame_free (usable_frame);
           return false; 
         }
       // Modified
@@ -478,7 +475,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         {
           // Modified
           // palloc_free_page (kpage);
-          frame_free (kpage_hashed);
+          frame_free (usable_frame);
           return false; 
         }
 
@@ -499,10 +496,9 @@ setup_stack (void **esp, const char *cmd_line)
   uint8_t *kpage;
   bool success = false;
   // Modified
-  // kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  struct hash_elem kpage_hashed;
-  kpage_hashed = frame_get (true);
-  kpage = frame_find (&kpage_hashed)->page;
+  struct frame *usable_frame = frame_get ();
+  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  usable_frame->page = kpage;
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -512,7 +508,7 @@ setup_stack (void **esp, const char *cmd_line)
       }
       else
         // Modified
-        frame_free (kpage_hashed);
+        frame_free (usable_frame);
         // palloc_free_page (kpage);
     }
   return success;

@@ -7,25 +7,17 @@
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
 #include "lib/kernel/hash.h"
+#include "threads/loader.h"
 
-static struct hash frames;
+int number;
+static struct frame *frames;
 static struct lock frame_lock;
-
-static bool DEBUG = false;
+int frame_number;
+// static bool DEBUG = false;
 
 //so those outside frame.c can't lock and unlock
 void lock_frame (void);
 void unlock_frame (void);
-//check if a frame is less than another frame
-bool frame_less (const struct hash_elem *, const struct hash_elem *, void *);
-//hash it
-unsigned frame_hash (const struct hash_elem *, void *);
-//clear it
-void page_dump (struct frame *);
-//pay it
-void frame_payup (void *, bool);
-//determine class of page
-int get_class (uint32_t * , const void *);
 
 void
 lock_frame (){
@@ -38,7 +30,8 @@ void unlock_frame (){
 
 void
 frame_init (){
-	hash_init (&frames, frame_hash, frame_less, NULL);
+	number = init_ram_pages;
+	frames = malloc(number * sizeof(struct frame));
 	lock_init (&frame_lock);
 }
 
@@ -51,50 +44,39 @@ to make progress elsewhere. May be a good idea, but who knows. Zach gets
 all credit/blame for thinking of storing it. Austin gets all credit/blame 
 for deciding to delete it. 
 */
-struct hash_elem
-frame_get (bool zero){
-	void * kpage = palloc_get_page ( PAL_USER | (zero ? PAL_ZERO : 0) );
+struct frame *
+frame_get (){
 	struct thread * t = thread_current ();
 	struct frame *frame;
 	/* no free mem, lets get some */
-	if(kpage == NULL) {
-		lock_frame ();
-		evict ();
-		kpage = palloc_get_page ( PAL_USER | (zero ? PAL_ZERO : 0) );
-		unlock_frame ();
+	if(frame_number >= number) {
+		// lock_frame ();
+		// evict ();
+		// kpage = palloc_get_page ( PAL_USER | (zero ? PAL_ZERO : 0) );
+		// unlock_frame ();
 	}
 
 	/* There is room, lets fill it */
-	if(kpage != NULL){
+	else if(frame_number < number){
 		frame = (struct frame*) malloc (sizeof (struct frame));
-		frame -> page = kpage;
+		frame->page = palloc_get_page (PAL_USER);
 		frame -> thread = t;
+		frame -> held = true;
 		frame -> pinned = false;
 
-		lock_frame ();
-		hash_insert (&frames, &frame -> hash_elem);
-		unlock_frame ();
 	}
-
-	return frame->hash_elem;
+	return frame;
 }
 
 /*
 Get rid of the frame and all of its stuff
 */
 bool
-frame_free (struct hash_elem kill){
-	struct frame * frame;
-	struct hash_elem * found_this_frame;
+frame_free (struct frame *frame){
 
-	found_this_frame = hash_find (&frames, kill);
-	if(found_this_frame != NULL){
-		frame = hash_entry (found_this_frame, struct frame, hash_elem);
-
-		palloc_free_page (&frame->page); //Free physical memory
-		hash_delete (&frames, &frame->hash_elem); //Free entry in the frame table
-		free (frame); //Delete the structure
-
+	if(frames[frame->frame_number].held == true){
+		palloc_free_page (&frames[frame->frame_number].page); //Free physical memory
+		frames[frame->frame_number].held = false;
 		return true;
 	} else {
 		return false;
@@ -103,38 +85,9 @@ frame_free (struct hash_elem kill){
 
 /*
 look for a frame with this address, if it isn't found return NULL
+STAN LEEEEEEEEE
 */
 struct frame *
-frame_find (struct hash_elem *find_me){
-	struct frame * frame;
-	struct hash_elem * found_frame = NULL;
-	//Assumption: Return of hash_find is the hash of the i'th element in the hash table
-	found_frame = hash_find (&frames, *find_me);
-	if(found_frame != NULL){
-		frame = hash_entry (found_frame, struct frame, hash_elem);
-		return frame;
-	} else {
-		return NULL;
-	}
-}
-
-
-/*
-Comparision function, returns if A is less than B
-
-bool
-frame_less (const struct hash_elem *a_, const struct hash_elem *b_	, void *aux UNUSED){
-	const struct frame * a = hash_entry (a_, struct frame, hash_elem);
-	const struct frame * b = hash_entry (b_, struct frame, hash_elem);
-	return a->addr < b->addr;
-}
-*/
-
-/*
-Can't use a hash table without a hash function
-*/
-unsigned
-frame_hash(const struct hash_elem *hash_this, void *aux UNUSED){
-	const struct frame * frame = hash_entry (hash_this, struct frame, hash_elem);
-	return hash_int ((unsigned)frame->frame_number);
+frame_find_from_number (int index){
+	return &frames[index];
 }
