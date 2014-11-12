@@ -457,7 +457,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       uint8_t *kpage = &usable_frame->page;
       if (kpage == NULL)
         return false;
-      usable_frame->page = kpage;
       /* Load this page. */
       // Modified 
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)

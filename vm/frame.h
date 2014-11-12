@@ -7,12 +7,9 @@
 #include "threads/thread.h"
 
 struct frame {
-	// void *paddr;						/* Physical address of the page */
-	// void *uvaddr;					/* User virtual address of the page*/
 	uint32_t frame_number;				/* Number corresponding to frame */
 	uint8_t *page;						/* pointer to the page resident in the frame */
 	struct thread *thread;				/* Thread the page belongs to*/
-	// struct <think of name> *origin;  /* Source of origin of the page*/
 	bool pinned;						/* don't evict this */
 	bool held;							/* Set to true if the frame is currently held by a thread */
 };

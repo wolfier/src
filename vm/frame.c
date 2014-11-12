@@ -59,7 +59,7 @@ frame_get (){
 	/* There is room, lets fill it */
 	else if(frame_number < number){
 		frame = (struct frame*) malloc (sizeof (struct frame));
-		frame->page = palloc_get_page (PAL_USER);
+		frame -> page = palloc_get_page (PAL_USER);
 		frame -> thread = t;
 		frame -> held = true;
 		frame -> pinned = false;
@@ -85,7 +85,6 @@ frame_free (struct frame *frame){
 
 /*
 look for a frame with this address, if it isn't found return NULL
-STAN LEEEEEEEEE
 */
 struct frame *
 frame_find_from_number (int index){
