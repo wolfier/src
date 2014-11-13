@@ -21,6 +21,7 @@
 #include "lib/string.h"
 #include "userprog/syscall.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 #include "lib/kernel/hash.h"
 
 static thread_func start_process NO_RETURN;
@@ -257,6 +258,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+  // page_init();
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -452,9 +454,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      
-      struct frame *usable_frame = frame_get ();
-      uint8_t *kpage = &usable_frame->page;
+      //Stuff with the new and shiny page table
+      struct frame *usable_frame = frame_get (PAL_USER);
+      uint8_t *kpage = usable_frame->page;
       if (kpage == NULL)
         return false;
       /* Load this page. */
@@ -495,9 +497,8 @@ setup_stack (void **esp, const char *cmd_line)
   uint8_t *kpage;
   bool success = false;
   // Modified
-  struct frame *usable_frame = frame_get ();
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  usable_frame->page = kpage;
+  struct frame *usable_frame = frame_get (PAL_USER | PAL_ZERO);
+  kpage = usable_frame->page;
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);

@@ -12,6 +12,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "filesys/file.h"
@@ -523,6 +524,8 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&(t->exit_sema), 0);
   list_init(&(t->child_list));
 
+  //for VM
+  // page_init();
   // intr_set_level(old_level);
   list_push_back (&all_list, &t->allelem);
 }

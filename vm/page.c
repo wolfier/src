@@ -44,41 +44,34 @@ page_init (){
 /*
 Allocates a new page then adds to page table
 */
-uint32_t
+struct hash_elem
 page_get (){
-	struct thread * t = thread_current ();
-
 	struct page * page = (struct page*) malloc (sizeof (struct page));
-	page -> addr = kpage;
-	page -> uvaddr = uvaddr;
-	page -> thread = t;
+
+	page -> page = palloc_get_page(PAL_USER);
+	page -> addr = (uint32_t)&page->page;
 	page -> pinned = false;
-	page -> resident = false;
-	page -> fuck_you_Zach = true;
-	page -> fuck_you_Jae = false;
+	page -> framed = false;
 
 	lock_page ();
 	hash_insert (&pages, &page -> hash_elem);
 	unlock_page ();
 
-	return uvaddr;
+	return page->hash_elem;
 }
 
 /*
 Get rid of the page and all of its stuff
 */
 bool
-page_free (uint32_t uvaddr){
-	struct page * page;
-	struct hash_elem * found_this_page;
-	struct page page_elem;
-	page_elem.addr = addr;
+page_free (struct hash_elem free_me){
+	struct page *page;
+	struct hash_elem *found_this_page;
 
-	found_this_page = hash_find (&pages, &page_elem.hash_elem);
+	found_this_page = hash_find (&pages, &free_me);
 	if(found_this_page != NULL){
 		page = hash_entry (found_this_page, struct page, hash_elem);
-
-		palloc_free_page (page->addr); //Free physical memory
+		palloc_free_page (&page->addr); //Free physical memory
 		hash_delete (&pages, &page->hash_elem); //Free entry in the page table
 		free (page); //Delete the structure
 
@@ -92,13 +85,11 @@ page_free (uint32_t uvaddr){
 look for a page with this address, if it isn't found return NULL
 */
 struct page *
-page_find (void * addr){
+page_find (struct hash_elem find_me){
 	struct page * page;
 	struct hash_elem * found_page;
-	struct page page_elem;
-	page_elem.addr = addr;
 
-	found_page = hash_find (&pages, &page_elem.hash_elem);
+	found_page = hash_find (&pages,&find_me);
 	if(found_page != NULL){
 		page = hash_entry (found_page, struct page, hash_elem);
 		return page;
@@ -107,6 +98,49 @@ page_find (void * addr){
 	}
 }
 
+
+bool
+page_in_frame (struct hash_elem framed_1){
+	struct page * page;
+	struct hash_elem * found_page;
+
+	found_page = hash_find(&pages, &framed_1);
+	if(found_page != NULL){
+		page = hash_entry(found_page, struct page, hash_elem);
+		return page->framed;
+	}
+	else
+		return false;
+}
+
+bool
+page_pinned (struct hash_elem pinned_1){
+	struct page * page;
+	struct hash_elem * found_page;
+
+	found_page = hash_find(&pages, &pinned_1);
+	if(found_page != NULL){
+		page = hash_entry(found_page, struct page, hash_elem);
+		return page->pinned;
+	}
+	else
+		return false;
+}
+
+
+bool
+page_swapped (struct hash_elem swapped_1){
+	struct page * page;
+	struct hash_elem * found_page;
+
+	found_page = hash_find(&pages, &swapped_1);
+	if(found_page != NULL){
+		page = hash_entry(found_page, struct page, hash_elem);
+		return page->swapped;
+	}
+	else
+		return false;
+}
 /*
 Comparision function, returns if A is less than B
 */
@@ -123,5 +157,5 @@ Can't use a hash table without a hash function
 unsigned
 page_hash(const struct hash_elem *hash_this, void *aux UNUSED){
 	const struct page * page = hash_entry (hash_this, struct page, hash_elem);
-	return hash_int ((unsigned)page->addr);
+	return hash_bytes (&page->addr,sizeof page->addr);
 }

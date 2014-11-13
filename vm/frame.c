@@ -45,9 +45,10 @@ all credit/blame for thinking of storing it. Austin gets all credit/blame
 for deciding to delete it. 
 */
 struct frame *
-frame_get (){
+frame_get (int param){
 	struct thread * t = thread_current ();
 	struct frame *frame;
+	int q;
 	/* no free mem, lets get some */
 	if(frame_number >= number) {
 		// lock_frame ();
@@ -63,7 +64,8 @@ frame_get (){
 		frame -> thread = t;
 		frame -> held = true;
 		frame -> pinned = false;
-
+		frames[frame_number] = frame;
+		frame_number++;
 	}
 	return frame;
 }
