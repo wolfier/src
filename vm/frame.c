@@ -31,6 +31,7 @@ void unlock_frame (){
 void
 frame_init (){
 	number = init_ram_pages;
+	frame_number = 0;
 	frames = malloc(number * sizeof(struct frame));
 	lock_init (&frame_lock);
 }
@@ -64,7 +65,7 @@ frame_get (int param){
 		frame -> thread = t;
 		frame -> held = true;
 		frame -> pinned = false;
-		frames[frame_number] = frame;
+		frames[frame_number] = *frame;
 		frame_number++;
 	}
 	return frame;
