@@ -45,17 +45,16 @@ page_init (){
 Allocates a new page then adds to page table
 */
 struct hash_elem
-page_get (){
+page_get (void *uaddr){
 	struct page * page = (struct page*) malloc (sizeof (struct page));
+	page -> vaddr = uaddr;
+	page -> frame = frame_get();
+	page -> framed = true;
+	page -> swapped = false;
 
-	page -> page = palloc_get_page(PAL_USER);
-	page -> addr = (uint32_t)&page->page;
-	page -> pinned = false;
-	page -> framed = false;
-
-	lock_page ();
+	// lock_page ();
 	hash_insert (&pages, &page -> hash_elem);
-	unlock_page ();
+	// unlock_page ();
 
 	return page->hash_elem;
 }
@@ -71,7 +70,7 @@ page_free (struct hash_elem free_me){
 	found_this_page = hash_find (&pages, &free_me);
 	if(found_this_page != NULL){
 		page = hash_entry (found_this_page, struct page, hash_elem);
-		palloc_free_page (&page->addr); //Free physical memory
+		palloc_free_page (&page->vaddr); //Free physical memory
 		hash_delete (&pages, &page->hash_elem); //Free entry in the page table
 		free (page); //Delete the structure
 
@@ -113,19 +112,19 @@ page_in_frame (struct hash_elem framed_1){
 		return false;
 }
 
-bool
-page_pinned (struct hash_elem pinned_1){
-	struct page * page;
-	struct hash_elem * found_page;
+// bool
+// page_pinned (struct hash_elem pinned_1){
+// 	struct page * page;
+// 	struct hash_elem * found_page;
 
-	found_page = hash_find(&pages, &pinned_1);
-	if(found_page != NULL){
-		page = hash_entry(found_page, struct page, hash_elem);
-		return page->pinned;
-	}
-	else
-		return false;
-}
+// 	found_page = hash_find(&pages, &pinned_1);
+// 	if(found_page != NULL){
+// 		page = hash_entry(found_page, struct page, hash_elem);
+// 		return page->pinned;
+// 	}
+// 	else
+// 		return false;
+// }
 
 
 bool
@@ -148,7 +147,7 @@ bool
 page_less (const struct hash_elem *a_, const struct hash_elem *b_	, void *aux UNUSED){
 	const struct page * a = hash_entry (a_, struct page, hash_elem);
 	const struct page * b = hash_entry (b_, struct page, hash_elem);
-	return a->addr < b->addr;
+	return a->vaddr < b->vaddr;
 }
 
 /*
@@ -157,5 +156,5 @@ Can't use a hash table without a hash function
 unsigned
 page_hash(const struct hash_elem *hash_this, void *aux UNUSED){
 	const struct page * page = hash_entry (hash_this, struct page, hash_elem);
-	return hash_bytes (&page->addr,sizeof page->addr);
+	return hash_bytes (&page->vaddr,sizeof page->vaddr);
 }

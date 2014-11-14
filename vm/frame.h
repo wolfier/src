@@ -15,7 +15,7 @@ struct frame {
 };
 
 void frame_init (void);
-struct frame *frame_get (int);
+struct frame *frame_get (void);
 bool frame_free (struct frame *);
 struct frame *frame_find_from_number (int);
 

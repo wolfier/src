@@ -443,7 +443,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
-
+  printf("load segment");
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -455,8 +455,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       //Stuff with the new and shiny page table
-      struct frame *usable_frame = frame_get (PAL_USER);
+      printf("how can he slap\n");
+      struct hash_elem hash;
+      hash = page_get(upage);
+      printf("how can we slap\n");
+      struct frame *usable_frame;
+      usable_frame = page_find(hash)->frame;
       uint8_t *kpage = usable_frame->page;
+      printf("how can she slap\n");
       if (kpage == NULL)
         return false;
       /* Load this page. */
@@ -479,7 +485,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           frame_free (usable_frame);
           return false; 
         }
-
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
@@ -497,7 +502,11 @@ setup_stack (void **esp, const char *cmd_line)
   uint8_t *kpage;
   bool success = false;
   // Modified
-  struct frame *usable_frame = frame_get (PAL_USER | PAL_ZERO);
+  struct hash_elem hash;
+  hash = page_get(((uint8_t *) PHYS_BASE) - PGSIZE);
+  struct frame *usable_frame;
+  usable_frame = page_find(hash)->frame;
+  // struct frame *usable_frame = frame_get (PAL_USER | PAL_ZERO);
   kpage = usable_frame->page;
   if (kpage != NULL) 
     {

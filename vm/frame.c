@@ -9,10 +9,11 @@
 #include "lib/kernel/hash.h"
 #include "threads/loader.h"
 
-int number;
+int number=1024;
 static struct frame *frames;
 static struct lock frame_lock;
 int frame_number;
+int free_frames;
 // static bool DEBUG = false;
 
 //so those outside frame.c can't lock and unlock
@@ -33,6 +34,12 @@ frame_init (){
 	number = init_ram_pages;
 	frame_number = 0;
 	frames = malloc(number * sizeof(struct frame));
+	int index=0;
+	struct frame *frame;
+	for(;index<number;index++){
+		frame = (struct frame*) malloc (sizeof (struct frame));
+		frame -> page = palloc_get_page(PAL_USER);
+	}
 	lock_init (&frame_lock);
 }
 
@@ -46,10 +53,9 @@ all credit/blame for thinking of storing it. Austin gets all credit/blame
 for deciding to delete it. 
 */
 struct frame *
-frame_get (int param){
+frame_get (){
 	struct thread * t = thread_current ();
 	struct frame *frame;
-	int q;
 	/* no free mem, lets get some */
 	if(frame_number >= number) {
 		// lock_frame ();
@@ -60,12 +66,10 @@ frame_get (int param){
 
 	/* There is room, lets fill it */
 	else if(frame_number < number){
-		frame = (struct frame*) malloc (sizeof (struct frame));
-		frame -> page = palloc_get_page (PAL_USER);
+		frame = &frames[frame_number];
 		frame -> thread = t;
 		frame -> held = true;
 		frame -> pinned = false;
-		frames[frame_number] = *frame;
 		frame_number++;
 	}
 	return frame;
