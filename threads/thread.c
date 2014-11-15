@@ -334,6 +334,8 @@ thread_exit (void)
       }
     }
   }
+ 
+
   //tell its parent to go
   sema_up(&cur->parent_thread->wait_sema);
   //close the file it is using

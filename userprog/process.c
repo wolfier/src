@@ -23,6 +23,7 @@
 #include "vm/frame.h"
 #include "vm/page.h"
 #include "lib/kernel/hash.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -54,12 +55,11 @@ process_execute (const char *file_name) {
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (exe, PRI_DEFAULT, start_process, fn_copy);
-
+  // printf("Created the thread with tid: %u\n",tid);
   //make sure current thread is finsihed loading
   sema_down(&cur->load_sema);
   if(cur->load_failed)
     return TID_ERROR;
-
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   palloc_free_page(copy);
@@ -82,7 +82,7 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
   // cur->parent_thread->load_success = success;
-  // printf("%u\n",cur->parent_thread->load_sema.value );
+  // printf("%u\n",success);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -134,12 +134,14 @@ process_wait (tid_t child_tid)
   return ret;
 }
 
-
 void
 shiva_destroyer_of_pages(struct hash_elem *subject){
   struct page *true_subject = hash_entry(subject, struct page, hash_elem);
-  free(true_subject);
+  if(true_subject)
+    free(true_subject);
+  // free(subject);
 }
+
 /* Free the current process's resources. */
 void
 process_exit (void)
@@ -148,12 +150,14 @@ process_exit (void)
   uint32_t *pd;
   //remove the child from its parent's children list
   list_remove(&cur->childelem);
-  /* Destroy the current process's supplementary page table */
-  struct hash *spd = cur->hash_table;
-  if(spd != NULL){
-    hash_destroy(spd,shiva_destroyer_of_pages);
-    cur->hash_table = NULL;
-  }
+ /* Destroy the current process's supplementary page table */
+#ifdef USERPROG
+  // struct hash *spd = cur->hash_table;
+  // if(spd != NULL && cur->name != "main"){
+    // hash_destroy(spd,shiva_destroyer_of_pages);
+    // cur->hash_table = NULL;
+  // }
+#endif
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -465,7 +469,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
+      // printf("._.%u:%x\n",thread_current()->tid,thread_current()->hash_table);
       /* Get a page of memory. */
       //Stuff with the new and shiny page table
       bool set = page_set_sup(upage, file, ofs, page_read_bytes, page_zero_bytes, writable);

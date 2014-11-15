@@ -86,6 +86,7 @@ frame_free (struct frame *frame){
 
 	if(frames[frame->frame_number].held == true){
 		palloc_free_page (&frames[frame->frame_number].page); //Free physical memory
+		frames[frame->frame_number].page = palloc_get_page(PAL_USER);
 		frames[frame->frame_number].held = false;
 		return true;
 	} else {
