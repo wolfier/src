@@ -171,11 +171,11 @@ page_fault (struct intr_frame *f)
     struct page *faulting_page = NULL;
     struct hash *h = t->hash_table;
     hash_first (&i, h);
-    printf("%u:%u:%u\n", not_present,write,user);
+    // printf("%u:%u:%u\n", not_present,write,user);
     while (hash_next (&i))
     {
       struct page *f = hash_entry (hash_cur (&i), struct page, hash_elem);
-      printf("8===========D\n%x\n%x\n",(int)fault_addr&0xffff000,f->vaddr);
+      // printf("8===========D\n%x\n%x\n",(int)fault_addr&0xffff000,f->vaddr);
       if(f->vaddr == (uint32_t)pg_round_down(fault_addr)){
          faulting_page = f;
          break;
@@ -190,8 +190,10 @@ page_fault (struct intr_frame *f)
       // if(!write){
         if(!faulting_page->framed && !faulting_page->swapped){
           struct frame *frame = frame_get();
-          void *kpage = frame->page;
-          if(file_read(faulting_page->executable,kpage,faulting_page->num_read_bytes) != (int)faulting_page->num_read_bytes){
+          uint32_t *kpage = frame->page;
+          if(faulting_page->executable == NULL)
+            printf("The Executable is null\n");
+          if(file_read_at(faulting_page->executable,kpage,faulting_page->num_read_bytes,faulting_page->ofs) != (int)faulting_page->num_read_bytes){
             printf("Failing at file read\n");
             ASSERT(false);
           }
@@ -208,7 +210,7 @@ page_fault (struct intr_frame *f)
         }
       // }
       // hash_delete(h,&faulting_page->hash_elem);
-      printf("succesfully loaded a page\n");
+      // printf("succesfully loaded a page\n");
     }
 
   }
