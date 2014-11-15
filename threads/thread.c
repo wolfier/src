@@ -196,8 +196,7 @@ thread_create (const char *name, int priority,
 #endif
   //added for VM
   t->hash_table = page_init();
-
-//end addition
+  //end addition
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 

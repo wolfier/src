@@ -26,6 +26,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+void shiva_destroyer_of_pages(struct hash_elem *);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -133,6 +134,12 @@ process_wait (tid_t child_tid)
   return ret;
 }
 
+
+void
+shiva_destroyer_of_pages(struct hash_elem *subject){
+  struct page *true_subject = hash_entry(subject, struct page, hash_elem);
+  free(true_subject);
+}
 /* Free the current process's resources. */
 void
 process_exit (void)
@@ -141,6 +148,12 @@ process_exit (void)
   uint32_t *pd;
   //remove the child from its parent's children list
   list_remove(&cur->childelem);
+  /* Destroy the current process's supplementary page table */
+  struct hash *spd = cur->hash_table;
+  if(spd != NULL){
+    hash_destroy(spd,shiva_destroyer_of_pages);
+    cur->hash_table = NULL;
+  }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -352,7 +365,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-
   /* Set up stack. */
   if (!setup_stack (esp, file_name))
     goto done;
@@ -500,7 +512,7 @@ setup_stack (void **esp, const char *cmd_line)
   uint8_t *kpage;
   bool success = false;
   // Modified
-  kpage = palloc_get_page(PAL_USER|PAL_ZERO);
+  // kpage = palloc_get_page(PAL_USER|PAL_ZERO);
   // struct hash_elem *hash;
   // hash = page_set(((uint8_t *) PHYS_BASE) - PGSIZE);
   // struct frame *usable_frame;
@@ -509,6 +521,7 @@ setup_stack (void **esp, const char *cmd_line)
   // kpage = page_find(&hash);
   // struct frame *frame_gotten = frame_get();
   // kpage = frame_gotten->page;
+  kpage = frame_get()->page;
   if (kpage != NULL) {
       // printf("Kpage is not null\n");
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
