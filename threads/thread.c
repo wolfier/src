@@ -525,7 +525,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&(t->child_list));
 
   //for VM
-  // page_init();
+  t->hash_table = page_init();
   // intr_set_level(old_level);
   list_push_back (&all_list, &t->allelem);
 }

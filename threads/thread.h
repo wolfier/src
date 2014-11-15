@@ -102,7 +102,9 @@ struct thread
     struct semaphore wait_sema;         /* Wait status */
     struct semaphore load_sema;         /* Load status */
     struct semaphore exit_sema;         /*allowed to exit*/
-    bool exiting;                       /*exited if true*/
+    bool exiting;                      /*exited if true*/
+    struct hash *hash_table;             /*Hash table for the thread*/
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

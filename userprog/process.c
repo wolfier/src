@@ -61,7 +61,7 @@ process_execute (const char *file_name) {
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  
+  palloc_free_page(copy);
   return tid;
 }
 
@@ -443,7 +443,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
-  printf("load segment");
+  printf("load segment\n");
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -455,37 +455,33 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       //Stuff with the new and shiny page table
-      printf("how can he slap\n");
-      struct hash_elem hash;
-      hash = page_get(upage);
-      printf("how can we slap\n");
-      struct frame *usable_frame;
-      usable_frame = page_find(hash)->frame;
-      uint8_t *kpage = usable_frame->page;
-      printf("how can she slap\n");
-      if (kpage == NULL)
-        return false;
-      /* Load this page. */
-      // Modified 
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          // Modified
-          // palloc_free_page (kpage);
-          frame_free (usable_frame);
-          return false; 
-        }
-      // Modified
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          // Modified
-          // palloc_free_page (kpage);
-          frame_free (usable_frame);
-          return false; 
-        }
-      /* Advance. */
+      bool set = page_set_sup(upage, file, ofs, page_read_bytes, page_zero_bytes, writable);
+      // void *kpage = page_find(hash);
+      // if(kpage == NULL)
+      //   printf("Slapping\n");
+      // if (kpage == NULL)
+      //   return false;
+      // /* Load this page. */
+      // // Modified 
+      // if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      //   {
+      //     // Modified
+      //     palloc_free_page (kpage);
+      //     // frame_free (usable_frame);
+      //     return false; 
+      //   }
+      // // Modified
+      // memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      // /* Add the page to the process's address space. */
+      // if (!install_page (upage, kpage, writable)) 
+      //   {
+      //     // Modified
+      //     palloc_free_page (kpage);
+      //     // frame_free (usable_frame);
+      //     return false; 
+      //   }
+      ofs += page_read_bytes; 
+      // /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
@@ -502,12 +498,13 @@ setup_stack (void **esp, const char *cmd_line)
   uint8_t *kpage;
   bool success = false;
   // Modified
-  struct hash_elem hash;
-  hash = page_get(((uint8_t *) PHYS_BASE) - PGSIZE);
-  struct frame *usable_frame;
-  usable_frame = page_find(hash)->frame;
+  kpage = palloc_get_page(PAL_USER|PAL_ZERO);
+  // struct hash_elem *hash;
+  // hash = page_set(((uint8_t *) PHYS_BASE) - PGSIZE);
+  // struct frame *usable_frame;
+  // usable_frame = page_find(hash)->frame;
   // struct frame *usable_frame = frame_get (PAL_USER | PAL_ZERO);
-  kpage = usable_frame->page;
+  // kpage = page_find(&hash);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -517,8 +514,8 @@ setup_stack (void **esp, const char *cmd_line)
       }
       else
         // Modified
-        frame_free (usable_frame);
-        // palloc_free_page (kpage);
+        // frame_free ();
+        palloc_free_page (kpage);
     }
   return success;
 }

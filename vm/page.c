@@ -35,28 +35,36 @@ void unlock_page (){
 	lock_release (&page_lock);
 }
 
-void
+struct hash *
 page_init (){
 	hash_init (&pages, page_hash, page_less, NULL);
 	lock_init (&page_lock);
+	return &pages;
 }
 
 /*
 Allocates a new page then adds to page table
 */
-struct hash_elem
-page_get (void *uaddr){
+bool
+page_set_sup(void *uaddr, struct file *file, off_t offset, size_t read, size_t zero, bool write){
 	struct page * page = (struct page*) malloc (sizeof (struct page));
 	page -> vaddr = uaddr;
-	page -> frame = frame_get();
+	page -> executable = file;
+	page -> num_read_bytes = read;
+	page -> num_zero_bytes = zero;
+	page -> writable = write;
+	page -> ofs = offset;
 	page -> framed = true;
 	page -> swapped = false;
 
-	// lock_page ();
+	lock_page ();
 	hash_insert (&pages, &page -> hash_elem);
-	// unlock_page ();
+	// struct hash_elem *inserted = hash_find(&pages, &page->hash_elem);
+	// struct page *truly_inserted = hash_entry(inserted,struct page, hash_elem);
+	// printf("==============\n%x\n",truly_inserted->hash_elem);
+	unlock_page ();
 
-	return page->hash_elem;
+	return true;
 }
 
 /*
@@ -83,16 +91,21 @@ page_free (struct hash_elem free_me){
 /*
 look for a page with this address, if it isn't found return NULL
 */
-struct page *
+uint8_t *
 page_find (struct hash_elem find_me){
 	struct page * page;
-	struct hash_elem * found_page;
-
+	struct hash_elem * found_page = NULL;
+	printf("1\n");
 	found_page = hash_find (&pages,&find_me);
-	if(found_page != NULL){
+	// printf("==========\n%x\n%x\n",find_me,found_page);
+	printf("2\n");
+	if(&found_page != NULL){
+		printf("3\n");
 		page = hash_entry (found_page, struct page, hash_elem);
-		return page;
+		printf("3.5\n");
+		return page->vaddr;
 	} else {
+		printf("4\n");
 		return NULL;
 	}
 }

@@ -22,6 +22,10 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+#ifdef VM
+#include "vm/frame.h"
+#include "vm/page.h"
+#endif
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"

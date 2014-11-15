@@ -4,13 +4,18 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "vm/page.h"
+#include "vm/frame.h"
+#include "lib/kernel/hash.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
-
+static bool install_page (void *, void *, bool);
 /* Registers handlers for interrupts that can be caused by user
    programs.
 
@@ -152,15 +157,42 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
+  // printf ("Page fault at %p: %s error %s page in %s context.\n",
+  //         fault_addr,
+  //         not_present ? "not present" : "rights violation",
+  //         write ? "writing" : "reading",
+  //         user ? "user" : "kernel");
 
-  printf("There is no crying in Pintos!\n");
+  // kill (f);
+  struct thread *t = thread_current();
+  struct hash_iterator i;
+  struct page *faulting_page = NULL;
+  struct hash *h = t->hash_table;
+  hash_first (&i, h);
+  while (hash_next (&i))
+  {
+    struct page *f = hash_entry (hash_cur (&i), struct page, hash_elem);
+      if(f->vaddr == fault_addr)
+        faulting_page = f;
+  }
+  if(faulting_page == NULL){
+    kill(f);
+  }
+  else{
+    struct frame *frame = frame_get();
+    void *kpage = frame->page;
+    if(file_read(faulting_page->executable,kpage,faulting_page->num_read_bytes) != (int)faulting_page->num_read_bytes)
+      kill(f);
+    memset (kpage + faulting_page->num_read_bytes, 0, faulting_page->num_zero_bytes);
+    if(!install_page (faulting_page->vaddr,kpage,faulting_page->writable))
+      kill(f);
+  }
 
-  kill (f);
-     
 }
 
+static bool
+install_page(void *upage, void *kpage, bool writable){
+  struct thread *t = thread_current();
+
+  return(pagedir_get_page (t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
+}

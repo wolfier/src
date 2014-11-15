@@ -9,7 +9,7 @@
 #include "lib/kernel/hash.h"
 #include "threads/loader.h"
 
-int number=1024;
+int number=383;
 static struct frame *frames;
 static struct lock frame_lock;
 int frame_number;
@@ -31,7 +31,7 @@ void unlock_frame (){
 
 void
 frame_init (){
-	number = init_ram_pages;
+	number = 383;
 	frame_number = 0;
 	frames = malloc(number * sizeof(struct frame));
 	int index=0;
@@ -39,6 +39,7 @@ frame_init (){
 	for(;index<number;index++){
 		frame = (struct frame*) malloc (sizeof (struct frame));
 		frame -> page = palloc_get_page(PAL_USER);
+		// frames[index] = (struct frame *)frame;
 	}
 	lock_init (&frame_lock);
 }
@@ -67,6 +68,8 @@ frame_get (){
 	/* There is room, lets fill it */
 	else if(frame_number < number){
 		frame = &frames[frame_number];
+		// frame = (struct frame*) malloc (sizeof (struct frame));
+		// frame -> page = palloc_get_page(PAL_USER);
 		frame -> thread = t;
 		frame -> held = true;
 		frame -> pinned = false;
@@ -96,4 +99,11 @@ look for a frame with this address, if it isn't found return NULL
 struct frame *
 frame_find_from_number (int index){
 	return &frames[index];
+}
+
+uint8_t *
+frame_corresponding_page(struct frame *frame){
+	uint8_t *ret_val = frame->page;
+	printf("Made it farther\n");
+	return ret_val;
 }
