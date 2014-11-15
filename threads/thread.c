@@ -194,6 +194,9 @@ thread_create (const char *name, int priority,
   list_push_back (&cur->child_list, &t->childelem);
   t->parent_thread = cur;
 #endif
+  //added for VM
+  t->hash_table = page_init();
+
 //end addition
 
   /* Prepare thread for first run by initializing its stack.
@@ -312,7 +315,6 @@ thread_exit (void)
   struct thread *t = NULL;
   struct thread *cur = thread_current();
   ASSERT (!intr_context ());
-
   //delete the children! :D
   if(list_size(&cur->child_list) > 0){
     for(le = list_begin(&cur->child_list);
@@ -524,8 +526,6 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&(t->exit_sema), 0);
   list_init(&(t->child_list));
 
-  //for VM
-  t->hash_table = page_init();
   // intr_set_level(old_level);
   list_push_back (&all_list, &t->allelem);
 }

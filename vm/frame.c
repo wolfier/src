@@ -9,7 +9,7 @@
 #include "lib/kernel/hash.h"
 #include "threads/loader.h"
 
-int number=383;
+int number=382;
 static struct frame *frames;
 static struct lock frame_lock;
 int frame_number;
@@ -31,7 +31,7 @@ void unlock_frame (){
 
 void
 frame_init (){
-	number = 383;
+	number = 382;
 	frame_number = 0;
 	frames = malloc(number * sizeof(struct frame));
 	int index=0;
@@ -39,7 +39,7 @@ frame_init (){
 	for(;index<number;index++){
 		frame = (struct frame*) malloc (sizeof (struct frame));
 		frame -> page = palloc_get_page(PAL_USER);
-		// frames[index] = (struct frame *)frame;
+		frames[index] = *frame;
 	}
 	lock_init (&frame_lock);
 }

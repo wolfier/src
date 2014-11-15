@@ -480,12 +480,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       //     // frame_free (usable_frame);
       //     return false; 
       //   }
-      ofs += page_read_bytes; 
+      ofs += PGSIZE; 
       // /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
     }
+  printf("finishing load segment\n");
   return true;
 }
 
@@ -505,8 +506,10 @@ setup_stack (void **esp, const char *cmd_line)
   // usable_frame = page_find(hash)->frame;
   // struct frame *usable_frame = frame_get (PAL_USER | PAL_ZERO);
   // kpage = page_find(&hash);
-  if (kpage != NULL) 
-    {
+  // struct frame *frame_gotten = frame_get();
+  // kpage = frame_gotten->page;
+  if (kpage != NULL) {
+      // printf("Kpage is not null\n");
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
         *esp = PHYS_BASE;
@@ -517,6 +520,7 @@ setup_stack (void **esp, const char *cmd_line)
         // frame_free ();
         palloc_free_page (kpage);
     }
+  // printf("%u\n",success);
   return success;
 }
 

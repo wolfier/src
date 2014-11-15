@@ -54,7 +54,7 @@ page_set_sup(void *uaddr, struct file *file, off_t offset, size_t read, size_t z
 	page -> num_zero_bytes = zero;
 	page -> writable = write;
 	page -> ofs = offset;
-	page -> framed = true;
+	page -> framed = false;
 	page -> swapped = false;
 
 	lock_page ();
