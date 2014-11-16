@@ -11,7 +11,7 @@
 #include "lib/string.h"
 #include "threads/vaddr.h"
 
-int number=382;
+int number=383;
 static struct frame *frames;
 static struct lock frame_lock;
 int frame_number;
@@ -34,7 +34,7 @@ void unlock_frame (){
 
 void
 frame_init (){
-	number = 382;
+	number = 383;
 	frame_number = 0;
 	frames = malloc(number * sizeof(struct frame));
 	int index=0;
@@ -75,6 +75,7 @@ frame_get (){
 
 	/* There is room, lets fill it */
 	else if(frame_number < number){
+		lock_frame();
 		frame = &frames[frame_number];
 		// frame = (struct frame*) malloc (sizeof (struct frame));
 		// frame -> page = palloc_get_page(PAL_USER);
@@ -82,6 +83,7 @@ frame_get (){
 		frame -> held = true;
 		frame -> pinned = false;
 		frame_number++;
+		unlock_frame();
 	}
 	return frame;
 }
@@ -129,6 +131,7 @@ int evict(){
 		if(!(&frames[i])->pinned){
 			if(!pagedir_is_accessed(pd, (&frames[i])->page) && !pagedir_is_dirty(pd, (&frames[i])->page)){
 				evict = i;
+				break;
 			}
 		}
 	}
