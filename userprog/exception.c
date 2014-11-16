@@ -166,9 +166,17 @@ page_fault (struct intr_frame *f)
 
   // kill (f);
   // printf("%u:%u:%u\n", not_present,write,user);
-  // printf("%x\n",fault_addr);
+  // printf("fault addr:%x\n",fault_addr);
   // printf("%u\n",is_user_vaddr(fault_addr));
-  if(is_user_vaddr(fault_addr)){
+  // printf("frame esp:%x\n", f->esp);
+  uint32_t addrdif = (uint32_t)(f->esp)-32;
+  // printf("addrdif:%x\n", addrdif);
+  if((uint32_t)fault_addr>=addrdif){
+    struct frame *frame = frame_get();
+    uint32_t *kpage = frame->page;
+    install_page((uint32_t)pg_round_down(fault_addr), kpage, true);
+  }
+  else if(is_user_vaddr(fault_addr)){
     // printf("%s\n", "reaches this point");
     struct thread *t = thread_current();
     struct hash_iterator i;

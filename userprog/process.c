@@ -528,6 +528,7 @@ setup_stack (void **esp, const char *cmd_line)
   kpage = frame_get()->page;
   if (kpage != NULL) {
       // printf("Kpage is not null\n");
+      // printf("installing page at %x\n", (((uint8_t *) PHYS_BASE) - PGSIZE));
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
         *esp = PHYS_BASE;
@@ -564,7 +565,6 @@ install_page (void *upage, void *kpage, bool writable)
 
 void
 load_stack(void **esp, const char *cmd_line){
-
   //Make copy of esp for safety
   void *csp = *esp;
   char *argv[128];
@@ -629,6 +629,5 @@ load_stack(void **esp, const char *cmd_line){
 
   // Set esp to csp 
   *esp = csp;
-
 
 }
