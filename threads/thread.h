@@ -116,6 +116,7 @@ struct thread
     bool called_wait;                   /* Wait status */
     bool load_failed;                   /* load status */
     struct file *executable;
+    uint32_t saved_esp;                 /* saved kernel esp */
 #endif
 
     /* Owned by thread.c. */

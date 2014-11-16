@@ -102,6 +102,7 @@ syscall_handler (struct intr_frame *f)
       check_pointer(p+4);
       check_pointer(*(char **)(p+8));
       check_pointer(p+12);
+      thread_current()->saved_esp = f->esp;
       f->eax = read(*(int *)(p+4),*(char **)(p+8),*(unsigned *)(p+12));
       break;
     /* 9. Write to a file. */
@@ -109,6 +110,7 @@ syscall_handler (struct intr_frame *f)
       check_pointer(p+4);
       check_pointer(*(void **)(p+8));
       check_pointer(p+12);
+      thread_current()->saved_esp = f->esp;
       f->eax = write(*(int *)(p+4), *(void **)(p+8), *(unsigned *)(p+12));
       break;
     /* 10. Change position in a file. */
@@ -287,6 +289,7 @@ read (int fd, void *buffer, unsigned size)
   sema_down (&syscall_sema);
   // printf("%s\n","_____________" );
   struct thread *cur = thread_current();
+
   //keyboard input
   if(fd == 0){
     // printf("0\n");

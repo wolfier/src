@@ -169,9 +169,20 @@ page_fault (struct intr_frame *f)
   // printf("fault addr:%x\n",fault_addr);
   // printf("%u\n",is_user_vaddr(fault_addr));
   // printf("frame esp:%x\n", f->esp);
+
   uint32_t addrdif = (uint32_t)(f->esp)-32;
-  // printf("addrdif:%x\n", addrdif);
-  if((uint32_t)fault_addr>=addrdif){
+  uint32_t addrdif_1 = (uint32_t)thread_current()->saved_esp - 32;
+  // printf("%x:%x\naddrdif_1:%x\n", f->esp,thread_current()->saved_esp,addrdif_1);
+  if(thread_current()->saved_esp != 0){
+    // printf("In not user\n");
+    if((uint32_t)fault_addr <= addrdif_1){
+      // printf("%s\n","in the if");
+      struct frame *frame = frame_get();
+      uint32_t *kpage = frame->page;
+      install_page((uint32_t)pg_round_down(fault_addr), kpage, true);
+    } 
+  }
+  else if((uint32_t)fault_addr>=addrdif){
     struct frame *frame = frame_get();
     uint32_t *kpage = frame->page;
     install_page((uint32_t)pg_round_down(fault_addr), kpage, true);
@@ -195,6 +206,8 @@ page_fault (struct intr_frame *f)
        }
     }
     if(faulting_page == NULL){
+      if((uint32_t)fault_addr <= (uint32_t)f->esp-4096)
+        kill(f);  
       printf("Not finding the faulting page\n");
       ASSERT(false);
       // kill(f);
