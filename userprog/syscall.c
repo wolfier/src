@@ -13,6 +13,9 @@
 #include "lib/string.h"
 #include "threads/palloc.h"
 
+#include "vm/page.h"
+#include "vm/frame.h"
+
 static void syscall_handler (struct intr_frame *);
 
 
@@ -30,6 +33,8 @@ bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
 int wait (pid_t pid);
 pid_t exec (const char *cmd_line);
+static bool install_page (void *, void *, bool);
+
 
 struct semaphore syscall_sema;
 
@@ -49,6 +54,7 @@ syscall_handler (struct intr_frame *f)
   check_pointer(p);
   //grab the call number
   int sys_call_num = *(int *)p;
+  thread_current()->saved_esp = f->esp;
 
   //p+4 is the first thing on the stack, p+8 is the second, p+12 is the third one
   //function returns are stored in eax 
@@ -139,11 +145,21 @@ void
 check_pointer(void *addr){
   struct thread *cur = thread_current ();
   uint32_t *pd = cur->pagedir;
+  uint32_t addrdif = (uint32_t)(cur->saved_esp)-32;
+
   //if the given pointer is a kernel virtual address, or it is invalid the process exits
     if(is_kernel_vaddr(addr) ||
-      pagedir_get_page(pd, addr) == NULL ||
       addr == NULL){
       exit(-1);
+    }
+    if(pagedir_get_page(pd, addr) == NULL){
+      if((uint32_t)addr>=addrdif){
+        struct frame *frame = frame_get();
+        uint32_t *kpage = frame->page;
+        install_page((uint32_t)pg_round_down(addr), kpage, true);
+      }
+      else
+        exit(-1);
     }
 }
 
@@ -286,6 +302,7 @@ input_getc(). */
 int
 read (int fd, void *buffer, unsigned size)
 {
+  // printf("trying to read\n");
   sema_down (&syscall_sema);
   // printf("%s\n","_____________" );
   struct thread *cur = thread_current();
@@ -397,4 +414,11 @@ close (int fd)
   file_close(cur->files[fd-2]);
   cur->files[fd-2] = NULL;
   sema_up (&syscall_sema);
+}
+
+static bool
+install_page(void *upage, void *kpage, bool writable){
+  struct thread *t = thread_current();
+
+  return(pagedir_get_page (t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
 }

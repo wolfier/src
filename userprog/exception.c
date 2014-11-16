@@ -133,7 +133,7 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
-
+  // printf("page faulting!\n");
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
      data.  It is not necessarily the address of the instruction
@@ -167,25 +167,24 @@ page_fault (struct intr_frame *f)
   // kill (f);
   // printf("%u:%u:%u\n", not_present,write,user);
   // printf("fault addr:%x\n",fault_addr);
+  // printf("saved esp: %x\n", thread_current()->saved_esp);
   // printf("%u\n",is_user_vaddr(fault_addr));
   // printf("frame esp:%x\n", f->esp);
 
   uint32_t addrdif = (uint32_t)(f->esp)-32;
   uint32_t addrdif_1 = (uint32_t)thread_current()->saved_esp - 32;
+  // printf("addrdif: %x\n", addrdif);
+  // printf("addrdif_1: %x\n", addrdif_1);
   // printf("%x:%x\naddrdif_1:%x\n", f->esp,thread_current()->saved_esp,addrdif_1);
-  if(thread_current()->saved_esp != 0){
-    // printf("In not user\n");
-    if((uint32_t)fault_addr <= addrdif_1){
-      // printf("%s\n","in the if");
-      struct frame *frame = frame_get();
-      uint32_t *kpage = frame->page;
-      install_page((uint32_t)pg_round_down(fault_addr), kpage, true);
-    } 
-  }
-  else if((uint32_t)fault_addr>=addrdif){
+  if((uint32_t)fault_addr>=addrdif){
     struct frame *frame = frame_get();
     uint32_t *kpage = frame->page;
     install_page((uint32_t)pg_round_down(fault_addr), kpage, true);
+  }
+  else if(thread_current()->saved_esp != 0 && !user && (uint32_t)fault_addr > addrdif_1){
+      struct frame *frame = frame_get();
+      uint32_t *kpage = frame->page;
+      install_page((uint32_t)pg_round_down(fault_addr), kpage, true);
   }
   else if(is_user_vaddr(fault_addr)){
     // printf("%s\n", "reaches this point");
