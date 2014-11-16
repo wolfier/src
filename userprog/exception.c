@@ -225,7 +225,8 @@ page_fault (struct intr_frame *f)
           }
           memset (kpage + faulting_page->num_read_bytes, 0, faulting_page->num_zero_bytes);
           if(!install_page (faulting_page->vaddr,kpage,faulting_page->writable)){
-            printf("Failing at install page\n");
+            // printf("Failing at install page\n");
+            exit(-1);
             ASSERT(false);
           }
           faulting_page->framed = true;
