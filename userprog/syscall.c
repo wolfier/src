@@ -285,13 +285,12 @@ int
 read (int fd, void *buffer, unsigned size)
 {
   sema_down (&syscall_sema);
-  int size_1 = size;
-  char c;
   // printf("%s\n","_____________" );
   struct thread *cur = thread_current();
   //keyboard input
   if(fd == 0){
-      uint8_t b = input_getc();
+    // printf("0\n");
+    uint8_t b = input_getc();
     sema_up (&syscall_sema);
     return b;
   }
@@ -306,7 +305,9 @@ read (int fd, void *buffer, unsigned size)
     return -1;
   }
   //it can begin reading
-  int x = file_read(cur->files[fd-2], buffer,(off_t)size);
+
+  // printf("offset: %u\n", file_get_offset(cur->files[fd-2]));//this call needs to be deleted from file.c
+  int x = file_read(cur->files[fd-2], buffer,(off_t)size);  
   sema_up (&syscall_sema);
   return x;
 

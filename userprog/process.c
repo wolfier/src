@@ -497,7 +497,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       //     // frame_free (usable_frame);
       //     return false; 
       //   }
-      ofs += PGSIZE; 
+      ofs += page_read_bytes; 
       // /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;

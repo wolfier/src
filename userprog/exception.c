@@ -167,14 +167,18 @@ page_fault (struct intr_frame *f)
   // kill (f);
   // printf("%u:%u:%u\n", not_present,write,user);
   // printf("%x\n",fault_addr);
+  // printf("%u\n",is_user_vaddr(fault_addr));
   if(is_user_vaddr(fault_addr)){
+    // printf("%s\n", "reaches this point");
     struct thread *t = thread_current();
     struct hash_iterator i;
     struct page *faulting_page = NULL;
     struct hash *h = t->hash_table;
     hash_first (&i, h);
+    // printf("%u\n", hash_size(h));
     while (hash_next (&i))
     {
+      // printf("%s\n", "inside the while loop");
       struct page *ff = hash_entry (hash_cur (&i), struct page, hash_elem);
       // printf("8===========D\n%x\n%x\n",(int)fault_addr&0xffff000,ff->vaddr);
       if(ff->vaddr == (uint32_t)pg_round_down(fault_addr)){
@@ -189,7 +193,7 @@ page_fault (struct intr_frame *f)
     }
     else{
       // if(!write){
-        if(!faulting_page->framed && !faulting_page->swapped){
+        // if(!faulting_page->framed && !faulting_page->swapped){
           struct frame *frame = frame_get();
           uint32_t *kpage = frame->page;
           if(faulting_page->executable == NULL)
@@ -205,15 +209,19 @@ page_fault (struct intr_frame *f)
             ASSERT(false);
           }
           faulting_page->framed = true;
-        }
+        // }
         if(faulting_page->swapped){
           //do things
           // or you know, bring it in from swap list. Things. Same thing. 
         }
+      }
+      //if the fault is with write
+      // else{
+
       // }
       // hash_delete(h,&faulting_page->hash_elem);
       // printf("succesfully loaded a page\n");
-    }
+    // }
 
   }
   else{
